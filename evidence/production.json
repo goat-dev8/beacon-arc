@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-08",
+  "api": "https://beacon-arc-api.onrender.com",
+  "web": "https://beacon-arc-one.vercel.app",
+  "renderService": "srv-db3ijo0m7kps73erhogg",
+  "health": { "status": 200, "body": { "ok": true } },
+  "ready": { "status": 200, "chainId": 5042 },
+  "vaultSummary": "0.01 USDC in the vault",
+  "vault": "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6"
+}

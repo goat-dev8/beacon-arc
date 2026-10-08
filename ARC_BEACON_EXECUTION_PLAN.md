@@ -695,7 +695,7 @@ None.
 
 ### Files to create
 
-Local root: `d:\route\Flare\arc\beacon\` (implementation tree).
+Local root: `d:\route\Flare\arc` (the GitHub tree). Do not create a second `beacon/` folder.
 
 - `package.json` workspaces: `packages/shared`, `packages/execution`, `packages/swap`, `packages/mcp`, `apps/api`, `apps/web`
 - `packages/contracts` Foundry

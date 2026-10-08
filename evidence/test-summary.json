@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-10-08",
+  "node": { "files": ["packages/shared/src/units.test.ts", "scripts/guard-bans.test.mjs"], "passed": 6, "failed": 0 },
+  "forge": { "suite": "test/BeaconUsdcVault.t.sol", "passed": 20, "failed": 0, "fuzzRuns": 256 },
+  "guard": "clean",
+  "usdcDecimals": 6,
+  "deployerErc20Balance": "1400000",
+  "gasPrice": "0x4b0159b8d"
+}

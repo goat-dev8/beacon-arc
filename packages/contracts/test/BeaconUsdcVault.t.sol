@@ -170,6 +170,82 @@ contract BeaconUsdcVaultTest is Test {
         vault.executeSend(a, sig);
     }
 
+    function test_executor_cannot_set_policy_pause_or_recipient() public {
+        vm.startPrank(executor);
+        vm.expectRevert(BeaconUsdcVault.NotOwner.selector);
+        vault.setPolicy(1, 1, 1);
+        vm.expectRevert(BeaconUsdcVault.NotOwner.selector);
+        vault.setPaused(true);
+        vm.expectRevert(BeaconUsdcVault.NotOwner.selector);
+        vault.allowRecipient(alice, false);
+        vm.stopPrank();
+    }
+
+    function test_deadline_past_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        a.deadline = block.timestamp - 1;
+        bytes memory sig = _sign(a);
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.Expired.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_value_with_execute_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        vm.deal(executor, 1);
+        vm.prank(executor);
+        (bool ok,) = address(vault).call{value: 1}(abi.encodeCall(BeaconUsdcVault.executeSend, (a, sig)));
+        assertFalse(ok);
+    }
+
+    function test_wrong_token_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        a.token = address(0xBEEF);
+        bytes memory sig = _sign(a);
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.TokenMismatch.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_altered_amount_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.amount = 2_000;
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadSignature.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_factory_second_create_reverts() public {
+        vm.expectRevert(BeaconVaultFactory.VaultExists.selector);
+        factory.create(owner, executor);
+    }
+
+    function test_registry_rejects_stranger() public {
+        vm.expectRevert(BeaconReceiptRegistry.UnknownVault.selector);
+        registry.record(bytes32(uint256(1)), address(vault), agent, alice, 1, 0);
+    }
+
+    function testFuzz_window_spent_never_exceeds_limit(uint256 salt) public {
+        uint256 spent = 0;
+        for (uint256 i = 0; i < 6; i++) {
+            uint256 amt = (uint256(keccak256(abi.encode(salt, i))) % 10_000) + 1;
+            BeaconUsdcVault.Action memory a = _action(amt, alice, i);
+            bytes memory sig = _sign(a);
+            if (spent + amt > 50_000) {
+                vm.prank(executor);
+                vm.expectRevert(BeaconUsdcVault.OverWindow.selector);
+                vault.executeSend(a, sig);
+                break;
+            }
+            vm.prank(executor);
+            vault.executeSend(a, sig);
+            spent += amt;
+            assertLe(vault.windowSpent(), vault.windowLimit());
+        }
+    }
+
     function test_window_second_payment_reverts() public {
         BeaconUsdcVault.Action memory first = _action(10_000, alice, 0);
         bytes memory s1 = _sign(first);

@@ -1,0 +1,17 @@
+{
+  "name": "beacon-arc",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/execution",
+    "packages/swap",
+    "packages/mcp",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "test": "node --test packages/shared/src/units.test.ts scripts/guard-bans.test.mjs",
+    "guard": "node scripts/guard-bans.mjs"
+  }
+}

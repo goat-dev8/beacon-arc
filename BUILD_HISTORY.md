@@ -28,3 +28,14 @@ Do not delete entries. Do not put secret values in this file.
 - **Env names written (values not recorded here):** `CHAIN_ID`, `ARC_RPC_URL`, `DEPLOYER_PRIVATE_KEY`, `EXECUTOR_PRIVATE_KEY`, `DATABASE_URL`, `DIRECT_URL`, `GITHUB_TOKEN`, `RENDER_API_KEY`, `VERCEL_TOKEN`, `SESSION_SECRET`.
 - **Evidence:** `evidence/phase0-probes.json`.
 - **Not done yet:** mainnet deploy, API, MCP, frontend, swap, CCTP, ERC-8004, x402.
+
+## 2026-10-08 — Phases 1–3: workspace, decimals, vault tests
+
+- **Phase:** 1 repository skeleton, 2 decimal library, 3 contract tests expanded.
+- **Push:** `7d4d6af` reached `origin/main` on `goat-dev8/beacon-arc` after the GitHub token was replaced. The previous token was rejected.
+- **Node tests:** 6 passed (units + ban guard).
+- **Forge tests:** 20 passed, 0 failed, including 256 fuzz runs that keep `windowSpent <= windowLimit`.
+- **Extra attacks covered:** executor cannot set policy, pause, or recipients; past deadline; ETH value on execute; wrong token; altered amount; second factory create; stranger registry write.
+- **USDC `decimals()`:** 6. Deployer ERC-20 balance `1400000` (1.4 USDC). This is the same pool as the 18-decimal native balance. Gas price `0x4b0159b8d` (above the 20 Gwei floor).
+- **Implementation root:** `d:\route\Flare\arc`, not a nested `beacon/` folder.
+- **Not deployed yet.**

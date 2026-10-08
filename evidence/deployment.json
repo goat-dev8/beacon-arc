@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-08",
+  "chainId": 5042,
+  "rpc": "https://rpc.mainnet.arc.io",
+  "deployer": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "executor": "0x412045b7c64d471DE57024f11E080289e6082172",
+  "agent": "0xc3b183D5e4436C20282650348BE2D6c94c4142dc",
+  "contracts": {
+    "receiptRegistry": "0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C",
+    "vaultFactory": "0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b",
+    "vault": "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6",
+    "usdc": "0x3600000000000000000000000000000000000000"
+  },
+  "codeBytes": { "registry": 1149, "factory": 6413, "vault": 5047 },
+  "transactions": {
+    "registryDeploy": "0x59c050bfb502b8a85a8313123deecadfc5ef1e3dc753cb66c66fcbf06d811b4b",
+    "factoryDeploy": "0xd2e73417d1749893d8780e46b1d8b85233c10d2198c3d3e779ec74cd0d5b98b5",
+    "setFactory": "0x9009746863ba97497e60bae0142fbdd19c594cc00cb6db5bc1bceb5362563fcf",
+    "fundExecutor": "0x4905123540adb0d1cde1f6e14045e3d5d514450ec15c2bcad5553a20bb99fb8c",
+    "createVault": "0x414b610b6bb2fca6e15d03cf4da77a092b37a54ff0b34bb7e213ba3e98c83c83",
+    "deposit": "0x46000acd92377210c2c962861b72b063e46bb062dd04e43441ee3d3d692117a0",
+    "setPolicy": "0x1300632d1155ca457d3a7c58c716047acdcb15f93c1db7817d4a0048da034b64",
+    "allowRecipient": "0x37968eee1367072979e0e5a4eec9ea849ba2ecb999af4658cbbcdba9ab5e5be5",
+    "setGrant": "0x40999cffc99e4657f999d1b768ce47d9ab096177d7c1bcbe88fafd4fb9b2ef66",
+    "send": "0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab",
+    "overCapRevert": "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83"
+  },
+  "send": { "amountBaseUnits": 10000, "status": "0x1", "vaultBalanceAfter": 10000 },
+  "overCapRevert": { "status": "0x0", "selector": "0x342fa66d" },
+  "sourceVerified": false
+}

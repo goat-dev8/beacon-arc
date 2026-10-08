@@ -39,3 +39,21 @@ Do not delete entries. Do not put secret values in this file.
 - **USDC `decimals()`:** 6. Deployer ERC-20 balance `1400000` (1.4 USDC). This is the same pool as the 18-decimal native balance. Gas price `0x4b0159b8d` (above the 20 Gwei floor).
 - **Implementation root:** `d:\route\Flare\arc`, not a nested `beacon/` folder.
 - **Not deployed yet.**
+
+## 2026-10-08 — Phase 4: Arc mainnet deploy and two real transactions
+
+- **Phase:** deploy factory, registry, one vault, then a real send and a real revert.
+- **Local simulation of `USDC.transfer` failed** with `OpcodeNotFound` on precompile `0x1800…0000`. That is the Arc native-coin precompile, which Foundry's local EVM does not implement. The same transfer was broadcast with `cast` and succeeded on mainnet. Do not treat a local USDC simulation failure as a mainnet failure.
+- **Registry:** `0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C` tx `0x59c050bfb502b8a85a8313123deecadfc5ef1e3dc753cb66c66fcbf06d811b4b`
+- **Factory:** `0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b` tx `0xd2e73417d1749893d8780e46b1d8b85233c10d2198c3d3e779ec74cd0d5b98b5`
+- **setFactory:** `0x9009746863ba97497e60bae0142fbdd19c594cc00cb6db5bc1bceb5362563fcf`
+- **Vault:** `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6` create tx `0x414b610b6bb2fca6e15d03cf4da77a092b37a54ff0b34bb7e213ba3e98c83c83`
+- **Owner:** `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034`
+- **Executor:** `0x412045b7c64d471DE57024f11E080289e6082172`
+- **Agent signer:** `0xc3b183D5e4436C20282650348BE2D6c94c4142dc`
+- **Send 0.01 USDC:** `0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab` status `0x1`. Vault ERC-20 balance after the send: 10000.
+- **Over-cap revert:** `0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83` status `0x0`, error selector `0x342fa66d` (`OverCap`). Gas estimation refused the tx; it was published with an explicit gas limit so the revert is on chain.
+- **Code sizes:** registry 1149, factory 6413, vault 5047. On-chain `owner`, `executor`, and `usdc` match.
+- **Source verification:** `forge verify-contract` against `https://explorer.arc.io/api` failed because Cloudflare returned an HTML challenge instead of JSON. Bytecode is on chain. Source is not marked verified.
+- **Evidence:** `evidence/deployment.json`
+- **Env names added:** `AGENT_PRIVATE_KEY`, `BEACON_VAULT_FACTORY`, `BEACON_RECEIPT_REGISTRY`.

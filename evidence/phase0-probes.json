@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-08",
+  "rpc": "https://rpc.mainnet.arc.io",
+  "chainId": "0x13b2",
+  "chainIdDecimal": 5042,
+  "deployer": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "deployerNativeBalanceBaseUnits": "1400000000000000000",
+  "executor": "0x412045b7c64d471DE57024f11E080289e6082172",
+  "codeBytes": {
+    "usdc": 1798,
+    "eurc": 1798,
+    "uniswapV2Router": 21902,
+    "cctpTokenMessenger": 2175,
+    "pqPrecompile": 1
+  },
+  "notes": [
+    "Native balance is 1.4 units at 18 decimals. Same USDC pool as the 6-decimal ERC-20. Do not add the two balances.",
+    "PQ precompile code is one byte (STOP stub). ABI is not pinned. Not in the vault.",
+    "Executor address has no gas yet. Fund it with a tiny native transfer before mainnet execution."
+  ]
+}

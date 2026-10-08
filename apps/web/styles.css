@@ -1,0 +1,41 @@
+:root {
+  --font-display: "Anybody", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  --ink: #2a2735;
+  --muted: #6b6778;
+  --paper: #f4f3f1;
+  --surface: #ffffff;
+  --line: #d9d6d0;
+  --signal: #1fbf6a;
+  --danger: #e25555;
+  --dusk: #1c1a24;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--paper);
+  background-image: url("data:image/svg+xml,%3Csvg width='32' height='32' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='16' y1='13' x2='16' y2='19' stroke='%23000' stroke-width='0.75' opacity='0.05'/%3E%3Cline x1='13' y1='16' x2='19' y2='16' stroke='%23000' stroke-width='0.75' opacity='0.05'/%3E%3C/svg%3E");
+}
+main { max-width: 880px; margin: 0 auto; padding: 48px 20px 80px; }
+h1 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em; font-size: 48px; margin: 0 0 8px; }
+.lede { color: var(--muted); font-size: 18px; max-width: 40rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-top: 20px; }
+.amount { font-family: var(--font-display); font-size: 32px; margin: 0; }
+.row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.k { color: var(--muted); }
+.v { font-family: var(--font-mono); font-size: 12px; text-align: right; word-break: break-all; }
+.pill { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 12px; background: #e7f8ee; color: var(--signal); }
+.pill.off { background: #f8e7e7; color: var(--danger); }
+button, summary { font: inherit; }
+details { margin-top: 12px; }
+a { color: inherit; }
+.state { color: var(--muted); }
+@media (max-width: 640px) {
+  h1 { font-size: 36px; }
+  .row { flex-direction: column; }
+  .v { text-align: left; }
+}

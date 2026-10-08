@@ -11,7 +11,8 @@
     "apps/web"
   ],
   "scripts": {
-    "test": "node --test packages/shared/src/units.test.ts scripts/guard-bans.test.mjs",
-    "guard": "node scripts/guard-bans.mjs"
+    "test": "node --test packages/shared/src/units.test.ts scripts/guard-bans.test.mjs apps/api/src/preflight.test.mjs apps/api/src/server.test.mjs apps/api/src/live.test.mjs",
+    "guard": "node scripts/guard-bans.mjs",
+    "start": "node apps/api/src/index.mjs"
   }
 }

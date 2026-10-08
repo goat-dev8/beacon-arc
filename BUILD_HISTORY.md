@@ -57,3 +57,13 @@ Do not delete entries. Do not put secret values in this file.
 - **Source verification:** `forge verify-contract` against `https://explorer.arc.io/api` failed because Cloudflare returned an HTML challenge instead of JSON. Bytecode is on chain. Source is not marked verified.
 - **Evidence:** `evidence/deployment.json`
 - **Env names added:** `AGENT_PRIVATE_KEY`, `BEACON_VAULT_FACTORY`, `BEACON_RECEIPT_REGISTRY`.
+
+## 2026-10-08 — Phase 5: API reads Arc and refuses unsigned sends
+
+- **API tests:** 9 passed. Live test: USDC `decimals()` is 6, and the local EIP-712 hash matches `hashAction` on the deployed vault.
+- **Local `/ready`:** 200, chain id 5042, database `select 1` succeeded after migration.
+- **`GET /v1/vault/0xBDfC…0034`:** `10000` base units, summary `0.01 USDC in the vault`.
+- **`GET /v1/verify/0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a`:** receipt exists, amount 10000.
+- **Capabilities:** privacy, PQ, x402, swap, CCTP, and ERC-8004 report `executable: false` with a reason. No success path for those.
+- **Startup bug:** the first process waited forever on the database. A connection timeout and a failed-migrate path that fails `/ready` closed fixed it. `/health` still returns 200.
+- **Not deployed to Render or Vercel in this entry.**

@@ -11,8 +11,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test packages/shared/src/units.test.ts scripts/guard-bans.test.mjs
+      - run: node --test packages/shared/src/units.test.ts scripts/guard-bans.test.mjs apps/api/src/preflight.test.mjs apps/api/src/server.test.mjs
       - run: node scripts/guard-bans.mjs
+      - run: node --test apps/api/src/live.test.mjs apps/api/src/production.test.mjs
   forge:
     runs-on: ubuntu-latest
     steps:
@@ -20,3 +21,13 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge test
         working-directory: packages/contracts
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test

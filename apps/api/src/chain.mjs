@@ -2,6 +2,9 @@ import { createPublicClient, createWalletClient, http, encodeFunctionData } from
 import { privateKeyToAccount } from "viem/accounts";
 import { ARC_USDC, CHAIN_ID, FACTORY, REGISTRY } from "./constants.mjs";
 
+export const V2_ROUTER = "0x1f7d7550b1b028f7571e69a784071f0205fd2efa";
+export const ARC_EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1";
+
 const arc = {
   id: CHAIN_ID,
   name: "Arc",
@@ -119,6 +122,29 @@ export async function readRecipient(client, vault, recipient) {
     client.readContract({ address: vault, abi: vaultAbi, functionName: "blockedRecipient", args: [recipient] }),
   ]);
   return { allowedRecipient, blockedRecipient };
+}
+
+const v2Abi = [
+  {
+    type: "function",
+    name: "getAmountsOut",
+    stateMutability: "view",
+    inputs: [
+      { name: "amountIn", type: "uint256" },
+      { name: "path", type: "address[]" },
+    ],
+    outputs: [{ name: "amounts", type: "uint256[]" }],
+  },
+];
+
+export async function quoteV2(client, amountIn) {
+  const amounts = await client.readContract({
+    address: V2_ROUTER,
+    abi: v2Abi,
+    functionName: "getAmountsOut",
+    args: [BigInt(amountIn), [ARC_USDC, ARC_EURC]],
+  });
+  return { amountIn: amounts[0].toString(), amountOut: amounts[1].toString() };
 }
 
 export async function readReceipt(client, actionHash) {

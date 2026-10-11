@@ -27,5 +27,5 @@
   },
   "send": { "amountBaseUnits": 10000, "status": "0x1", "vaultBalanceAfter": 10000 },
   "overCapRevert": { "status": "0x0", "selector": "0x342fa66d" },
-  "sourceVerified": false
+  "sourceVerified": "sourcify exact_match for vault, registry, and factory. Explorer UI was not marked verified when last opened."
 }

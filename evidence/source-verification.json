@@ -1,0 +1,76 @@
+{
+  "checkedAt": "2026-10-09",
+  "vault": "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6",
+  "explorerMarkedVerified": true,
+  "explorerRecheck": {
+    "method": "browser contract tab, not the verification form submit",
+    "database": "Blockscout Bytecode Database",
+    "match": "exact match",
+    "compiler": "0.8.26+commit.8a97fa7a",
+    "evm": "cancun",
+    "optimizer": true,
+    "runs": 200,
+    "vault": {
+      "name": "BeaconUsdcVault",
+      "verifiedAt": "Oct 9, 2026 5:58:54",
+      "file": "src/BeaconUsdcVault.sol",
+      "constructor": ["0x3600000000000000000000000000000000000000", "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034", "0x412045b7c64d471DE57024f11E080289e6082172", "0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C"]
+    },
+    "factory": {
+      "name": "BeaconVaultFactory",
+      "verifiedAt": "Oct 9, 2026 5:59:27",
+      "file": "src/BeaconVaultFactory.sol"
+    },
+    "registry": {
+      "name": "BeaconReceiptRegistry",
+      "verifiedAt": "Oct 9, 2026 5:59:49",
+      "file": "src/BeaconReceiptRegistry.sol"
+    },
+    "form": "The verification form was opened and was not submitted. The Sourcify widget inside it already said Exact Match for the vault."
+  },
+  "previousExplorerObservation": "On 2026-10-08 the contract tab showed raw bytecode and Verify & publish.",
+  "sourcifyExactMatch": true,
+  "verifiedAt": "2026-10-08T17:38:56Z",
+  "explorerUi": "https://explorer.arc.io/address/0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6?tab=contract shows raw bytecode and a Verify & publish button. It does not show Solidity source.",
+  "verificationForm": "https://explorer.arc.io/address/0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6/contract-verification opened in a browser. The form asks for a license and a compiler method. It was not submitted.",
+  "explorerApi": {
+    "url": "https://explorer.arc.io/api/v2/smart-contracts/0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C",
+    "status": 403,
+    "contentType": "text/html",
+    "blocker": "Cloudflare managed challenge. Cf-Mitigated: challenge. Title: Just a moment..."
+  },
+  "sourcify": {
+    "vault": {
+      "address": "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6",
+      "status": 200,
+      "match": "exact_match",
+      "creationMatch": "exact_match",
+      "runtimeMatch": "exact_match",
+      "matchId": "55782816",
+      "job": "https://sourcify.dev/server/verify-ui/jobs/da26356c-8256-4512-93fe-eac434c3496e"
+    },
+    "registry": {
+      "address": "0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C",
+      "status": 200,
+      "match": "exact_match",
+      "matchId": "55782819",
+      "job": "https://sourcify.dev/server/verify-ui/jobs/c620d549-e9ef-4dc8-bb92-6b4ac934f0a9"
+    },
+    "factory": {
+      "address": "0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b",
+      "status": 200,
+      "match": "exact_match",
+      "matchId": "55782820",
+      "job": "https://sourcify.dev/server/verify-ui/jobs/5f399d63-7665-47ef-a650-63a25a3bf460"
+    }
+  },
+  "bytecode": {
+    "compiler": "solc 0.8.26 optimizer 200 via_ir",
+    "metadata": "c884a41f0b5bda9365e92e320f243e4026bfc85150e2cda73348532160da48bb",
+    "localHasMetadata": true,
+    "chainHasMetadata": true,
+    "hexLength": 10096,
+    "fullStringEqual": false,
+    "reason": "The metadata hash and length match. The bytes that differ are constructor immutables. Local bytecode has a zero domain separator. Arc bytecode has the vault domain separator computed at construction. That is not a source mismatch, and it is not an explorer verification."
+  }
+}

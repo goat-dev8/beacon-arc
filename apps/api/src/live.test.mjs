@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { onchainActionHash, publicClient, readDecimals } from "./chain.mjs";
+import { onchainActionHash, publicClient, quoteV2, readDecimals } from "./chain.mjs";
 import { actionHash } from "./eip712.mjs";
 
 const rpc = "https://rpc.mainnet.arc.io";
@@ -27,4 +27,11 @@ test("live USDC decimals are 6 and the local action hash matches the vault", asy
   const local = actionHash(vault, action);
   const onchain = await onchainActionHash(client, vault, action);
   assert.equal(local.toLowerCase(), onchain.toLowerCase());
+});
+
+test("live Uniswap V2 quotes USDC to EURC and the vault still cannot swap", async () => {
+  const quote = await quoteV2(publicClient(rpc), 10_000n);
+  assert.equal(quote.amountIn, "10000");
+  assert.notEqual(quote.amountOut, "0");
+  assert.match(quote.amountOut, /^\d+$/);
 });

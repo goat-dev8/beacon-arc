@@ -217,6 +217,81 @@ contract BeaconUsdcVaultTest is Test {
         vault.executeSend(a, sig);
     }
 
+    function test_altered_recipient_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.recipient = address(0xBEEF);
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadSignature.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_altered_deadline_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.deadline += 1;
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadSignature.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_altered_nonce_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.nonce = 1;
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadNonce.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_altered_agent_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.agent = address(0xBEEF);
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadSignature.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_altered_grant_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.grantId = 2;
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadSignature.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_altered_policy_version_reverts() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.policyVersion += 1;
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.PolicyMismatch.selector);
+        vault.executeSend(a, sig);
+    }
+
+    function test_altered_quote_fields_revert() public {
+        BeaconUsdcVault.Action memory a = _action(1_000, alice, 0);
+        bytes memory sig = _sign(a);
+        a.amountOutMin = 1;
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadSignature.selector);
+        vault.executeSend(a, sig);
+
+        a.amountOutMin = 0;
+        a.quoteHash = bytes32(uint256(1));
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.BadSignature.selector);
+        vault.executeSend(a, sig);
+
+        a.quoteHash = bytes32(0);
+        a.tokenOut = address(0xBEEF);
+        vm.prank(executor);
+        vm.expectRevert(BeaconUsdcVault.TokenMismatch.selector);
+        vault.executeSend(a, sig);
+    }
+
     function test_factory_second_create_reverts() public {
         vm.expectRevert(BeaconVaultFactory.VaultExists.selector);
         factory.create(owner, executor);

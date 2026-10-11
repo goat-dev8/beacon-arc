@@ -1,5 +1,8 @@
 {
   "version": 2,
-  "builds": [{ "src": "apps/web/**", "use": "@vercel/static" }],
-  "routes": [{ "src": "/(.*)", "dest": "apps/web/$1" }]
+  "installCommand": "npm install",
+  "buildCommand": "npm run build -w @beacon/web",
+  "outputDirectory": "apps/web/dist",
+  "framework": null,
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

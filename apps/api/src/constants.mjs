@@ -8,19 +8,19 @@ export const CAPABILITIES = {
   send: { executable: true },
   swap: {
     executable: false,
-    reason: "Swap execution stays off until the Uniswap command allowlist is tested. No quote is invented.",
+    reason: "Uniswap V2 can quote USDC to EURC. The deployed vault has no swap function, so Beacon will not trade.",
   },
   cctp: {
     executable: false,
-    reason: "CCTP is not in this deploy. A burn is not a completed bridge.",
+    reason: "CCTP domain 26 is on Arc. This vault cannot burn or mint, so a burn is not a completed bridge.",
   },
   privacy: {
     executable: false,
-    reason: "Arc private settlement is not executable. Beacon will not report a private transfer.",
+    reason: "Arc Privacy Sector is planned and is not on mainnet. Beacon will not report a private transfer.",
   },
   pq: {
     executable: false,
-    reason: "The PQ precompile ABI is not pinned. This is not a PQ wallet.",
+    reason: "The PQ precompile at 0x1800…0004 is 1 byte on mainnet. This is not a PQ wallet.",
   },
   x402: {
     executable: false,

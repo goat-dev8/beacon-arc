@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-08",
+  "router": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+  "method": "getAmountsOut(uint256,address[])",
+  "tokenIn": "0x3600000000000000000000000000000000000000",
+  "tokenOut": "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
+  "amountIn": "10000",
+  "amounts": ["10000", "8427"],
+  "executable": false,
+  "reason": "The deployed BeaconUsdcVault has executeSend only. This read is not a trade."
+}

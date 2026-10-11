@@ -67,3 +67,201 @@ Do not delete entries. Do not put secret values in this file.
 - **Capabilities:** privacy, PQ, x402, swap, CCTP, and ERC-8004 report `executable: false` with a reason. No success path for those.
 - **Startup bug:** the first process waited forever on the database. A connection timeout and a failed-migrate path that fails `/ready` closed fixed it. `/health` still returns 200.
 - **Not deployed to Render or Vercel in this entry.**
+
+## 2026-10-08 — Render and Vercel
+
+- **API:** https://beacon-arc-api.onrender.com service `srv-db3ijo0m7kps73erhogg`
+- **Web:** https://beacon-arc-one.vercel.app
+- **`/health`:** 200 `{ok:true}`
+- **`/ready`:** 200 chain id 5042
+- **`/v1/vault/0xBDfC…0034`:** `0.01 USDC in the vault`
+- **`POST /mcp` without a bearer:** 401
+- **Browser:** the production page shows `$0.01 USDC in the vault` and marks swap, CCTP, privacy, PQ, x402, and ERC-8004 unavailable.
+- **Env names set on Render:** `ARC_RPC_URL`, `CHAIN_ID`, `EXECUTOR_PRIVATE_KEY`, `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, `BEACON_VAULT_FACTORY`, `BEACON_RECEIPT_REGISTRY`, `ARC_USDC`, `NODE_VERSION`
+- **Evidence:** `evidence/production.json`
+
+## 2026-10-08 — 0G frontend copied and retargeted to Arc
+
+The first hosted page was a small static shell. The product UI is the Beacon 0G app, retargeted. `0g/beacon-0g` was not edited.
+
+1. Removed the static `apps/web/app.js`, `config.js`, and `styles.css`.
+2. Copied `0g/beacon-0g/apps/web` into `arc/apps/web` (Vite, React 19, Tailwind 4, wagmi, Reown, motion, react-router).
+3. Retitled `index.html` to `Beacon — Arc USDC firewall`.
+4. Replaced banned runtime strings in source (tests are skipped by the ban guard and still name the old chain): Aristotle → Arc, TeeML → policy, W0G → USDC, `evmrpc.0g.ai` → `rpc.mainnet.arc.io`, chain id 16661 → 5042 outside tests. A first replace turned `get.0g.ai` into `get.explorer.arc.io`; those hosts were then set to `https://explorer.arc.io`.
+5. `apps/web/src/lib/chain.ts` now uses chain 5042, RPC `https://rpc.mainnet.arc.io`, explorer `https://explorer.arc.io`, USDC `0x3600…0000`, registry `0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C`, factory `0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b`, vault `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`. Old names (`escrow`, `jobRegistry`, `safeFactory`) are aliases of those four contracts so the copied app typechecks. They are not separate 0G contracts.
+6. `publicEnv.ts` points production at `https://beacon-arc-api.onrender.com`. Dev proxy in `vite.config.ts` forwards `/v1`, `/health`, and `/ready` to that API.
+7. `reown.ts` wallet network is Arc, native currency name USDC, production URL `https://beacon-arc-one.vercel.app`.
+8. `apps/web/.env.production` was rewritten to public Arc values only. Root `.gitignore` ignores `.env.*`, so Vercel does not upload that file. Production uses the source fallbacks.
+9. `npm install` at the repo root added the web workspace (500 packages). `npx tsc -p apps/web --noEmit` passed. `vite build` passed.
+10. Root `vercel.json` builds `@beacon/web` and publishes `apps/web/dist`, with an SPA rewrite to `/index.html`.
+11. Ban guard on `packages`, `apps`, and `scripts` reported clean after the copy pass.
+12. Landing, navbar, why-Arc, protection story, how-it-works, manifesto, architecture strip, feature chips, and the agent card were rewritten to the USDC firewall: grant, cap, allowlist, EIP-712, vault transfer, receipt. Swap, CCTP, privacy, PQ, x402, and ERC-8004 stay off.
+13. `arcApi.ts` reads `/v1/capabilities` and `/v1/vault/:owner`. Amounts use 6 decimals. The desk note says it does not quote a compute job and does not move USDC.
+14. Security page shows `ArcVaultPanel` from those live reads. A wallet with no vault shows “No vault for this wallet”. The deployed vault owner is `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034`.
+15. Workspace catalog is local (Vault, Allowlist, Receipt, Send, Policy, Off). The main button is “Read the vault”. It calls `readArcDesk` and does not call `createJob`.
+16. Flow chat replies with `describeArc` and `displayModel: "Arc vault"`. It does not call `/v1/agents/chat`. Conversation history is an empty list because this API has no chat store.
+17. `approveJobOnChain` throws and does not broadcast. It tells the user the agent signs the USDC action.
+18. Verify page: a 32-byte id calls `readArcReceipt` on `receipts(bytes32)` and returns vault, agent, recipient, amount, nonce, exists. The old 0G receipt ABI is not used for that hash. The page title is “USDC receipt”. The independent RPC line is green only when those fields match the API.
+19. Live registry read of `0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a` matches the API: vault `0x71Ef…FAB6`, agent `0xc3b183…42dc`, recipient `0xBDfC…0034`, amount `10000` (0.01 USDC), nonce `0`, exists true.
+20. Production deploys of this tree, in order, all aliased to `https://beacon-arc-one.vercel.app`:
+    - first Vite app
+    - vault desk (`Read the vault` present in the production chunk)
+    - receipt page, deployment `dpl_JTWnUH5rScDGuQyX21P1Htu4Pi5s`, ready. Production chunk `assets/VerifyPage-NHNBN6mo.js` contains `USDC receipt`.
+21. Git `main` is still `5fcb2a1` (“feat: point the site at the live Arc API”). The Vite app is uncommitted. `.env`, `.env.local`, and `.vercel/` stay untracked. No commit was made because none was requested.
+22. Security deposit, withdraw, pause, and executor buttons were still calling `api.prepareVault` and could broadcast returned calldata. That mutation now throws and submits nothing. Execution-step labels no longer say `lockNative`, TEE, or Storage. They describe policy, EIP-712, relay, `USDC.transfer`, and the receipt registry.
+
+**Still open:** contract source is not verified (explorer API returned a Cloudflare challenge). Old job, TEE, and policy client calls remain in `api.ts` and some security queries. Chat does not prepare a signed send. Swap, CCTP, privacy, PQ, ERC-8004, and x402 stay off. The acceptance gate is not green. This goal is not complete.
+
+## 2026-10-08 — Resume: vault journey and MCP deny paths
+
+- **Phase:** continue from the live vault. Do not redeploy contracts.
+- **Read:** `ARC_BEACON_EXECUTION_PLAN.md` §§2–3.1, 8–10, phases 5–8; `BUILD_HISTORY.md`; `apps/api/src/server.mjs`; `BeaconUsdcVault.sol`; `BeaconVaultFactory.sol`.
+- **Bug:** `handleMcp` called `readers` from outside `createServer`. `get_vault` would throw before any tool ran. The handler now receives `readers`.
+- **API:** `POST /v1/grants/revoke` requires the owner session and the grant’s vault. MCP gained a `verify` tool that returns `no_receipt` when the registry row is missing.
+- **Frontend:** `/flow/vault` is the owner journey: connect, wrong-chain switch, one vault per owner, ERC-20 USDC transfer, EIP-191 session that does not move funds, `setPolicy`, pause, `allowRecipient`, `setGrant`, API bearer, revoke, and a send that signs only when the connected wallet is the agent. Success without `txHash` throws.
+- **Removed broadcast:** `executeAgentVaultPrep` and `sendPreparedVaultTx` throw. They no longer send arbitrary calldata.
+- **Tests:** `node --test apps/api/src/server.test.mjs` — 7 passed, 0 failed. New cases: MCP initialize and tools/list with a grant, over-cap prepare, revoke then 401, mutated amount does not broadcast. `npx tsc -p apps/web --noEmit` passed.
+- **Not deployed:** Render and Vercel still serve the previous push. Status file: `CURRENT_STATUS.md`.
+- **Not green:** source verification, swap, CCTP, ERC-8004, PQ, x402, privacy execution, full E2E, old job UI removal, production click-through.
+
+## 2026-10-08 — Vault desk is the live product page
+
+- **Desk:** `/flow/desk` now renders the vault journey. The nav label is Vault. The “Escrow AI jobs” header is gone.
+- **Flow:** the chat no longer calls `/v1/tee/status`, the old agent list, or conversation history on connect. Those routes do not exist on this API.
+- **Swap read:** `cast call` Uniswap V2 `getAmountsOut` for 10000 USDC base units to EURC returned `[10000, 8427]`. Evidence: `evidence/swap-quote.json`. `GET /v1/quote/swap` returns that shape with `executable: false` because the deployed vault has no swap function. API test count is 8 passed. This route is not on Render yet.
+- **Vercel:** production deployment `dpl_JBrwtBX5hSdmZFyqrVEz4pqdBjbz`, alias https://beacon-arc-one.vercel.app. Chunk `assets/VaultJourneyPage-BCqfkQ6K.js` contains “Create my vault”.
+- **Browser:** https://beacon-arc-one.vercel.app/flow/desk shows “Your USDC vault”, chain 5042, and the seven steps. Connect is enabled. Create, fund, policy, grant, and send stay disabled until a wallet is connected.
+- **Not pushed.** Git `main` is still `5fcb2a1`. The acceptance gate is not green.
+
+## 2026-10-08 — Swap quote is a direct Arc read
+
+- **Problem:** the deployed desk called `GET /v1/quote/swap` on Render. That route is only in the working tree, so production returned 404.
+- **Change:** the desk now calls Uniswap V2 `getAmountsOut` on `https://rpc.mainnet.arc.io`. It does not send a transaction.
+- **Live test:** `node --test apps/api/src/live.test.mjs` — 2 passed. USDC decimals are 6, the known action hash matches the vault, and 10000 base units quotes a non-zero EURC amount.
+- **Vercel:** `dpl_3vNiysUvVf5W1p5PweEX6TAdumck`, alias https://beacon-arc-one.vercel.app.
+- **Browser:** the owner wallet `0xBDfC…0034` is connected. The page shows `0.01 USDC in the vault`, vault `0x71Ef…FAB6`, policy v1, nonce 1, max 10000. The quote line is `8427` EURC base units and says the vault has no swap function. Create stays disabled because this owner already has a vault. Network: vault `200`, router RPC `200`, no quote 404.
+- **Still not on Render:** grant revoke and `GET /v1/quote/swap`. The acceptance gate is not green.
+
+## 2026-10-08 — Field mutations revert, source is not explorer-verified
+
+- **Forge:** `forge test` — 27 passed, 0 failed, including 256 fuzz runs. New cases change the signed recipient, amount, agent, grant id, deadline, nonce, policy version, amountOutMin, quote hash, and tokenOut. Every change reverts. Nonce reverts `BadNonce` and policy version reverts `PolicyMismatch` before signature recovery. A changed tokenOut reverts `TokenMismatch`. The other edits revert `BadSignature`. None of them transfer USDC.
+- **Explorer API:** `GET https://explorer.arc.io/api/v2/smart-contracts/0xB448…` returned 403 `text/html` with `Cf-Mitigated: challenge`. Automated `forge verify-contract` cannot pass that challenge.
+- **Sourcify:** chain 5042 registry address returned 404, `match: null`.
+- **Browser:** the vault contract tab shows bytecode and **Verify & publish**. It does not show source. The verification form opened and was not submitted.
+- **Bytecode:** local `forge inspect` and `cast code` for the vault are the same length and share metadata `c884a41f0b5bda9365e92e320f243e4026bfc85150e2cda73348532160da48bb`. They are not byte-identical because the on-chain copy contains the constructor domain separator. Evidence: `evidence/source-verification.json`.
+- **Status:** not verified on the explorer. Do not describe the vault as verified.
+
+## 2026-10-08 — Production HTTP checks and competitive review
+
+- **Tests:** `node --test apps/api/src/production.test.mjs` — 4 passed. Production `/health` and `/ready` are up, chain id 5042. The owner vault returns `10000` base units and `0.01 USDC`. Send is executable. Swap, CCTP, privacy, PQ, x402, and ERC-8004 are not. `POST /mcp` with no bearer is 401. The login challenge has no transaction hash. `https://beacon-arc-one.vercel.app/flow/desk` is the Arc firewall shell and does not contain “Escrow AI jobs”.
+- **Review:** `COMPETITIVE_REVIEW.md`. Beacon’s difference from MergePay, A-Identity, Legwork, Uniswap, Payrun, and x402 apps is the signed action the executor cannot edit. Adding a screen does not copy that. The review does not claim the gate is green.
+- **Not done:** Playwright wallet E2E, explorer verification, Render deploy of the uncommitted API, and the rest of the acceptance gate.
+
+## 2026-10-08 — Agents and Safe no longer show the old job product
+
+- **Removed from the routes:** the job desk, the TEE security page, and the old MCP grant screen that offered image, job, and bridge scopes. Those files are deleted. `/flow/security` is the vault journey. `/flow/mcp` is the Arc agent page. `/desk-legacy` redirects to the vault.
+- **Vercel:** `dpl_25q9ZaaiEmwzvJ3SyQrWWmVLH54h`, alias https://beacon-arc-one.vercel.app. Typecheck passed before the deploy.
+- **Browser:** https://beacon-arc-one.vercel.app/flow/mcp shows “Agent access”, the Render MCP endpoint, and the five real tools. “Call initialize with no bearer” returned `401` and `Bearer required.` https://beacon-arc-one.vercel.app/flow/security shows “Your USDC vault”, not a TEE unlock.
+- **Not pushed.** The acceptance gate is not green.
+
+## 2026-10-08 — Playwright against production
+
+- Chromium for Playwright installed. `npx playwright test` — 3 passed in 10s.
+- The vault desk shows “Your USDC vault” and the send button, and does not say “Escrow AI jobs”.
+- Agents: initialize with no bearer shows “Bearer required.”
+- Safe shows the vault journey and does not show “Unlock Beacon Agent”.
+- CI workflow now also runs the API unit tests, the live Arc reads, the production HTTP checks, and Playwright. That workflow is in the working tree. It has not run on GitHub because this tree is not pushed.
+
+## 2026-10-08 — Sourcify exact match
+
+- **Command:** `forge verify-contract` with `--verifier sourcify --chain 5042 --via-ir`. The vault also used `--guess-constructor-args` against `https://rpc.mainnet.arc.io`.
+- **Vault** `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`: job `da26356c-8256-4512-93fe-eac434c3496e`, status `exact_match`. Match id `55782816`.
+- **Registry** `0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C`: job `c620d549-e9ef-4dc8-bb92-6b4ac934f0a9`, status `exact_match`. Match id `55782819`.
+- **Factory** `0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b`: job `5f399d63-7665-47ef-a650-63a25a3bf460`, status `exact_match`. Match id `55782820`.
+- **Recheck:** `GET https://sourcify.dev/server/v2/contract/5042/<address>` returned 200 and `creationMatch` and `runtimeMatch` of `exact_match` for all three.
+- **Explorer:** the Blockscout page was still on the unpublished verification form. The explorer API remains a Cloudflare 403. Sourcify is the verification record. Do not say the explorer badge is verified.
+
+## 2026-10-08 — Verify page no longer shows a job proof
+
+- **Change:** `/verify/:id` now reads only a 32-byte Arc action hash. A non-hash id says “Not an Arc receipt” and does not render escrow, TEE, storage, or job status. A missing registry row says “No receipt”.
+- **Typecheck:** `npx tsc -p apps/web --noEmit` passed before deploy.
+- **Vercel:** `dpl_4iCu5h9ZfsShiSTQPMFjSkr1RhVQ`, ready, aliased to https://beacon-arc-one.vercel.app. Inspector https://vercel.com/goats-projects-3f023cc9/beacon-arc/4iCu5h9ZfsShiSTQPMFjSkr1RhVQ.
+- **Playwright:** `npx playwright test` — 5 passed. The first receipt assertion failed because “0.01 USDC” matched two nodes. The assertion now requires `0.01 USDC · 10000 base units`. The rerun passed.
+- **Production proof:** https://beacon-arc-one.vercel.app/verify/not-a-job has no “Job proof”. https://beacon-arc-one.vercel.app/verify/0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a shows “USDC receipt” and `0.01 USDC · 10000 base units`.
+- **Not done:** Render is still `5fcb2a1` and does not have grant revoke. The landing still has a “Preparing a job” diagram label. The acceptance gate is not green. Not pushed.
+
+## 2026-10-08 — Landing, block, activity, and typecheck
+
+- **Landing:** the quality diagrams now say Connect, Policy, Sign, Relay, Vault, Transfer, Allow, Cap, Receipt. The section label is “Preparing a send”. It no longer says “Preparing a job”.
+- **Vault page:** Block recipient calls `blockRecipient`. Revoke on-chain grant calls `revokeGrant`. Activity lists `Executed` logs from the vault. A failed log read is shown as an error, not as a success.
+- **Chat cards:** a job card cannot call `approveJobFromSafe`. A swap card cannot call `executeSafeSwap`. Both explain that those actions are not this product.
+- **Typecheck:** the first `tsc -p apps/web/tsconfig.app.json --noEmit` failed with 6 errors, including an unused refresh callback and impossible TEE comparisons. Those were fixed. The rerun passed.
+- **Vercel:** `dpl_VTnsgDzMd6jwy8PAP8HnitrmM5AK`, ready, aliased to https://beacon-arc-one.vercel.app.
+- **Playwright:** `npx playwright test` — 6 passed, including the vault block and activity headings and the landing text.
+- **Not done:** Render is still the older API. The acceptance gate is not green. Not pushed.
+
+## 2026-10-08 — Legacy job routes refuse before fetch
+
+- **Change:** `request()` in the web client throws before `fetch` for jobs, agent chat, TEE, services, vault prepare, safe swap, flow history, safe-session, bridge, credit, receipts, security, and `/v1/mcp`. Compute-job event streams throw and do not open an `EventSource`.
+- **Flow:** a paid resend no longer calls `/v1/agents/chat`. Loading, renaming, pinning, or archiving a chat no longer calls `/v1/flow`. A job card no longer polls `/v1/jobs` and no longer offers a start button.
+- **Tests:** `node --test apps/web/src/lib/refusedPaths.test.ts` — 2 passed.
+- **Typecheck:** the first `tsc -p apps/web/tsconfig.app.json --noEmit` failed because the unused job setters were still declared. Removing them made phase comparisons impossible, so the job card is now a static “Not an Arc send” link to the vault. The rerun passed.
+- **Vercel:** `dpl_DtutjAnTxabLuEDtKhxvamYGCcgt`, ready, aliased to https://beacon-arc-one.vercel.app.
+- **Playwright:** the first full run had 5 passed and 1 failed. The MCP button stayed disabled while Render had not answered within 5 seconds. The assertion wait is now 30 seconds. The rerun passed, then `npx playwright test` passed 6 of 6.
+- **Not done:** Render is still the older API. The acceptance gate is not green. Not pushed.
+
+## 2026-10-09 — Duplicate Create was requested while the vault was still loading
+
+- **Screenshot:** Rabby showed method `Create` to factory `0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b`, owner Account 2, executor `0x412045b7c64d471DE57024f11E080289e6082172`. Network fee said Unavailable USDC. The button said Review alert. The page still said “Reading the vault…”.
+- **Live reads:** `eth_chainId` is 5042. `vaultOf(0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034)` is `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`. That vault’s `owner()` is the same address and `executor()` is `0x412045b7c64d471DE57024f11E080289e6082172`. Code size 5047. The factory has no `predict` function.
+- **Simulation:** `cast call create(owner, executor)` from that owner reverted `VaultExists`, selector `0x4239717c`. The owner’s native balance is `1258159077718862862` base units, so the account can pay gas. The fee is unavailable because the call reverts, not because the balance is zero.
+- **Alert:** the attached browser could not open the Rabby popup. The visible control is Rabby’s Review alert on an unfamiliar contract whose simulation reverts. This Create is unnecessary. Do not sign it. Cancel it in the wallet.
+- **Cause:** Create stayed enabled while the vault query had not returned. The button is now disabled until that read finishes, and it says “Vault already exists” when the factory already has one. The click reads the API again and does not broadcast if a vault is found.
+- **Activity:** `eth_getLogs` over more than 10000 blocks returns `-32012 requested range too large`. The vault was created in block `24848337`. The send is in block `24848449`. The page now reads logs in 4000-block chunks from that creation block.
+- **Vercel:** `dpl_2zGZPPy8FnwmRujb5Zu6NfESrFZh`, ready, aliased to https://beacon-arc-one.vercel.app. Typecheck passed before the deploy.
+- **Not signed.** The acceptance gate is not green. Not pushed.
+
+## 2026-10-09 — A valid owner call can be priced; activity reads are chunked
+
+- **Gas:** `cast gas-price` on `https://rpc.mainnet.arc.io` returned `20000001003` wei, about 20 gwei. `cast estimate setPaused(true)` from the owner on vault `0x71Ef5450…FAB6` returned `29998` gas. That call was not broadcast. A valid owner transaction can be priced. The earlier Unavailable fee belonged to the reverting Create.
+- **Production API:** `POST /v1/auth/challenge` with the owner address returned a login message and an expiry, no transaction hash. `POST /v1/vault/prepare-send` and `POST /mcp` return 401 without a session. `POST /v1/grants/revoke` and `GET /v1/quote/swap` return 404 on Render. Those two routes exist only in the working tree.
+- **Activity:** log reads stay in 4000-block chunks, now six at a time. The row label says “action nonce” so it is not confused with the vault nonce.
+- **Vercel:** `dpl_7DYAkER2NXt7JJjeUgrYToF4ryeF`, ready, aliased to https://beacon-arc-one.vercel.app. Typecheck passed before the deploy.
+- **Not signed.** The acceptance gate is not green. Not pushed.
+
+## 2026-10-09 — Session length and live API limits
+
+- **Typecheck:** `npx tsc -p apps/web/tsconfig.app.json --noEmit` passed.
+- **Copy:** the browser session now says 12 hours, matching `saveSession`. The login challenge is 10 minutes. It still does not move funds.
+- **Revoke:** a 404 from `POST /v1/grants/revoke` now says the API does not revoke bearers yet and the on-chain grant is unchanged.
+- **Agents page:** says the live API lists capabilities, get_vault, prepare_send, and submit_signed_send. Verify is marked as not listed there yet.
+- **Vercel:** `dpl_4S64XQUi3AEfCPfszKwSMEqABZ6K`, ready, aliased to https://beacon-arc-one.vercel.app.
+- **Not signed.** The acceptance gate is not green. Not pushed.
+
+## 2026-10-09 — The connected wallet is the owner, not the grant agent
+
+- **Chain:** `grants(1)` on vault `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6` returned agent `0xc3b183D5e4436C20282650348BE2D6c94c4142dc`, max `10000`, expiry `1792040766`, scope `1`, active `true`.
+- **Page:** the vault page reads that grant. Production shows “Grant 1 is active for 0xc3b183D5e4436C20282650348BE2D6c94c4142dc. Max 10000 base units. Expires 2026-10-15T05:06:06.000Z. Scope 1. This wallet is not that agent, so it cannot sign a send.” Sign and relay stays disabled. Create stays “Vault already exists”.
+- **Typecheck:** `npx tsc -p apps/web/tsconfig.app.json --noEmit` passed.
+- **Vercel:** `dpl_9UNY5XW4kxCMv1xgKv2Vf5MNsF6R`, ready, aliased to https://beacon-arc-one.vercel.app.
+- **Playwright:** `npx playwright test` passed 6 of 6 against that alias.
+- **Explorer:** the contract tab now says “Contract source code verified (exact match)” via the Blockscout Bytecode Database. Vault `BeaconUsdcVault` verified Oct 9, 2026 5:58:54. Factory `BeaconVaultFactory` verified Oct 9, 2026 5:59:27. Registry `BeaconReceiptRegistry` verified Oct 9, 2026 5:59:49. Compiler `0.8.26+commit.8a97fa7a`, Cancun, optimizer 200. The verification form was opened and was not submitted. The Sourcify widget already said Exact Match. This is source publication, not a security audit.
+- **Not signed.** The acceptance gate is not green. Render is still the older API. Not pushed.
+
+## 2026-10-09 — Unchanged policy and empty addresses no longer open a transaction
+
+- **Typecheck:** `npx tsc -p apps/web/tsconfig.app.json --noEmit` passed, exit 0.
+- **Policy:** `setPolicy` always increments `policyVersion`. The live caps are 10000 and 50000 base units with a 86400-second window. The button now reads `windowSeconds` and stays disabled as “Policy already matches” when the form equals that state. Production shows that sentence.
+- **Addresses:** Allow, block, and register stay disabled until the field is a 20-byte hex address. Register no longer falls back to the connected wallet. An empty agent field does not replace grant 1.
+- **Vercel:** `dpl_EAS6xnZEsXoARj482nSrErrP7EYQ`, ready, aliased to https://beacon-arc-one.vercel.app. The reloaded page still shows vault `0x71Ef…FAB6`, grant 1 for `0xc3b183…`, and the 10000-base-unit activity row.
+- **Not signed.** The acceptance gate is not green. Render is still the older API. Not pushed.
+
+## 2026-10-11 — Vault buttons, activity speed, and per-question flow answers
+
+- **Buttons:** outlined actions sat on the same dark card color, so disabled controls were hard to see. Enabled actions are now green with dark text. Disabled actions are a light-gray label on `#3a4149`. Production measured “Vault already exists” at 164×44, color `rgb(247, 248, 248)` on `rgb(58, 65, 73)`, and “Transfer USDC to the vault” at 209×44, color `rgb(6, 33, 22)` on `rgb(57, 224, 138)`.
+- **Speed:** the activity reader was walking from block `24848337` to head `25469436`, about 621,000 blocks, in 4,000-block chunks. It now reads the creation window and the latest 12,000 blocks. The reloaded vault page showed the 10000-base-unit receipt in the same view as the vault.
+- **Vault read:** the page reads `vaultOf` and the vault fields from `https://rpc.mainnet.arc.io` instead of waiting on the hosted API.
+- **Flow:** “Can I swap USDC?” answered “Uniswap V2 quotes 0.01 USDC as 8276 EURC base units. The live vault only has executeSend, so Beacon will not trade.” “Show my vault balance and policy.” answered with vault `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`, 0.01 USDC, policy v1, nonce 1, cap 0.01, window 0.05.
+- **Docs checked:** `https://docs.arc.io/arc/concepts/execution-layer` lists Arc Privacy Sector as planned. `https://docs.arc.io/arc/concepts/opt-in-privacy` describes APS, not a live mainnet path. `https://docs.arc.io/arc/references/contract-addresses` lists CCTP domain 26 and TokenMessengerV2 `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d`. `cast codesize 0x1800…0004` returned 1. Those capabilities stay off. A quote is not a trade. A burn is not a completed bridge.
+- **Vercel:** `dpl_52rtxQUeQvvpiS3eDV7Y5tveq1tK`, ready, aliased to https://beacon-arc-one.vercel.app. Typecheck passed before the first deploy in this pass.
+- **Not signed.** The acceptance gate is not green.

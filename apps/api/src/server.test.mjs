@@ -98,6 +98,27 @@ test("prepare rejects an over-cap amount before any broadcast", async () => {
   await app.close();
 });
 
+test("swap quote is a router read and is not executable", async () => {
+  const app = createServer({
+    client: {},
+    store: memoryStore(),
+    readers: readers(),
+    quoteSwap: async () => ({ amountIn: "10000", amountOut: "8427" }),
+    broadcast: async () => {
+      throw new Error("quote must not broadcast");
+    },
+  });
+  const res = await app.inject({ method: "GET", url: "/v1/quote/swap?amount=10000" });
+  const body = JSON.parse(res.body);
+  assert.equal(res.statusCode, 200);
+  assert.equal(body.status, "quoted");
+  assert.equal(body.amountOut, "8427");
+  assert.equal(body.executable, false);
+  const empty = await app.inject({ method: "GET", url: "/v1/quote/swap?amount=0" });
+  assert.equal(empty.statusCode, 400);
+  await app.close();
+});
+
 test("mcp without a bearer is denied", async () => {
   const { app } = await boot();
   const res = await app.inject({ method: "POST", url: "/mcp", payload: { jsonrpc: "2.0", id: 1, method: "initialize" } });
@@ -166,6 +187,120 @@ test("a second submit of the same action does not broadcast again", async () => 
   assert.equal(calls.length, 1);
   void signature;
   void headers;
+  await app.close();
+  await app2.close();
+});
+
+async function ownerSession(app, account) {
+  const challenge = await app.inject({ method: "POST", url: "/v1/auth/challenge", payload: { address: account.address } });
+  const message = JSON.parse(challenge.body).message;
+  const signature = await account.signMessage({ message });
+  const session = await app.inject({ method: "POST", url: "/v1/auth/verify", payload: { address: account.address, signature } });
+  return JSON.parse(session.body).token;
+}
+
+test("mcp initialize and tools/list succeed only with a live grant", async () => {
+  const { app } = await boot();
+  const account = privateKeyToAccount(generatePrivateKey());
+  const token = await ownerSession(app, account);
+  const granted = await app.inject({
+    method: "POST",
+    url: "/v1/grants",
+    headers: { authorization: `Bearer ${token}` },
+    payload: { agent: account.address, maxPerTx: "1000" },
+  });
+  const bearer = JSON.parse(granted.body).bearer;
+  const init = await app.inject({
+    method: "POST",
+    url: "/mcp",
+    headers: { authorization: `Bearer ${bearer}` },
+    payload: { jsonrpc: "2.0", id: 1, method: "initialize" },
+  });
+  assert.equal(init.statusCode, 200);
+  assert.equal(JSON.parse(init.body).result.serverInfo.name, "beacon-arc");
+  const list = await app.inject({
+    method: "POST",
+    url: "/mcp",
+    headers: { authorization: `Bearer ${bearer}` },
+    payload: { jsonrpc: "2.0", id: 2, method: "tools/list" },
+  });
+  assert.equal(list.statusCode, 200);
+  const denied = await app.inject({
+    method: "POST",
+    url: "/mcp",
+    headers: { authorization: `Bearer ${bearer}` },
+    payload: {
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "prepare_send", arguments: { owner, recipient: owner, amount: "1001", grantId: "1", deadline: "9999999999" } },
+    },
+  });
+  assert.match(denied.body, /over_cap/);
+  const revoked = await app.inject({
+    method: "POST",
+    url: "/v1/grants/revoke",
+    headers: { authorization: `Bearer ${token}` },
+    payload: { bearer },
+  });
+  assert.equal(revoked.statusCode, 200);
+  const after = await app.inject({
+    method: "POST",
+    url: "/mcp",
+    headers: { authorization: `Bearer ${bearer}` },
+    payload: { jsonrpc: "2.0", id: 4, method: "initialize" },
+  });
+  assert.equal(after.statusCode, 401);
+  await app.close();
+});
+
+test("a mutated amount does not broadcast", async () => {
+  const { app, calls } = await boot();
+  const store = memoryStore();
+  await store.saveSession("session-token", owner, Date.now() + 60_000);
+  const app2 = createServer({
+    client: {},
+    store,
+    readers: readers(),
+    broadcast: async () => {
+      calls.push("broadcast");
+      return "0xabc";
+    },
+  });
+  const account = privateKeyToAccount(generatePrivateKey());
+  const signature = await account.signTypedData({
+    domain: { name: "Beacon", version: "1", chainId: 5042, verifyingContract: vaultState.vault },
+    types: { Action: [
+      { name: "grantId", type: "uint256" }, { name: "agent", type: "address" }, { name: "actionClass", type: "uint8" },
+      { name: "token", type: "address" }, { name: "recipient", type: "address" }, { name: "amount", type: "uint256" },
+      { name: "tokenOut", type: "address" }, { name: "amountOutMin", type: "uint256" }, { name: "quoteHash", type: "bytes32" },
+      { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }, { name: "policyVersion", type: "uint256" },
+    ] },
+    primaryType: "Action",
+    message: {
+      grantId: 1n, agent: account.address, actionClass: 1,
+      token: "0x3600000000000000000000000000000000000000", recipient: owner,
+      amount: 1000n, tokenOut: "0x0000000000000000000000000000000000000000", amountOutMin: 0n,
+      quoteHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+      nonce: 1n, deadline: 9999999999n, policyVersion: 1n,
+    },
+  });
+  const res = await app2.inject({
+    method: "POST",
+    url: "/v1/vault/execute-send",
+    headers: { authorization: "Bearer session-token" },
+    payload: {
+      action: {
+        vault: vaultState.vault, owner, grantId: "1", agent: account.address, actionClass: 1,
+        token: "0x3600000000000000000000000000000000000000", recipient: owner, amount: "1001",
+        nonce: "1", deadline: "9999999999", policyVersion: "1",
+      },
+      signature,
+    },
+  });
+  assert.equal(res.statusCode, 400);
+  assert.equal(JSON.parse(res.body).error.code, "bad_signature");
+  assert.equal(calls.length, 0);
   await app.close();
   await app2.close();
 });

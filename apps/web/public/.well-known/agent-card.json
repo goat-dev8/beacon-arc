@@ -1,0 +1,31 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "Beacon Arc",
+  "description": "USDC firewall for agents on Arc. The owner sets policy and the recipient allowlist. The agent signs an EIP-712 action. The executor relays it and cannot change the fields. Swap, CCTP, privacy, post-quantum signing, x402, and ERC-8004 are not executable in this deploy.",
+  "image": "https://beacon-arc-one.vercel.app/icons.svg",
+  "services": [
+    {
+      "name": "web",
+      "endpoint": "https://beacon-arc-one.vercel.app/"
+    },
+    {
+      "name": "MCP",
+      "endpoint": "https://beacon-arc-api.onrender.com/mcp",
+      "version": "2025-03-26"
+    }
+  ],
+  "x402Support": false,
+  "active": true,
+  "chainId": 5042,
+  "paymentUnit": "USDC",
+  "proof": {
+    "mechanism": "EIP-712 action hash + receipt registry",
+    "verify": "https://beacon-arc-one.vercel.app/verify/:id"
+  },
+  "capabilities": ["send"],
+  "unavailable": ["swap", "cctp", "privacy", "pq", "x402", "erc-8004"],
+  "mcpTools": ["get_policy", "get_spend", "preflight_tx", "verify"],
+  "executionScope": "Beacon vault executor only. The agent never receives a private key.",
+  "registrations": [],
+  "supportedTrust": []
+}

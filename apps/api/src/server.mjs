@@ -3,7 +3,7 @@ import { verifyMessage } from "viem";
 import { CAPABILITIES, CHAIN_ID, FACTORY } from "./constants.mjs";
 import { actionHash, recoverAgent, sendTypedData } from "./eip712.mjs";
 import { preflightSend } from "./preflight.mjs";
-import { factoryHasCode, readChainId, readReceipt, readRecipient, readVault } from "./chain.mjs";
+import { factoryHasCode, quoteV2, readChainId, readReceipt, readRecipient, readVault } from "./chain.mjs";
 import { newBearer } from "./store.mjs";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -34,6 +34,31 @@ export function createServer(deps) {
   });
 
   app.get("/v1/capabilities", async () => CAPABILITIES);
+
+  app.get("/v1/quote/swap", async (req, reply) => {
+    const amount = String(req.query?.amount ?? "10000");
+    if (!/^\d+$/.test(amount) || BigInt(amount) === 0n) {
+      return reply.code(400).send({ error: { code: "amount", message: "Amount must be a positive base-unit integer." } });
+    }
+    try {
+      const quote = await (deps.quoteSwap ?? quoteV2)(deps.client, amount);
+      if (!quote.amountOut || quote.amountOut === "0") {
+        return { status: "NO_ROUTE", venue: "uniswap-v2", amountIn: amount, executable: false, reason: "The router returned no output." };
+      }
+      return {
+        status: "quoted",
+        venue: "uniswap-v2",
+        tokenIn: "0x3600000000000000000000000000000000000000",
+        tokenOut: "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
+        amountIn: quote.amountIn,
+        amountOut: quote.amountOut,
+        executable: false,
+        reason: "The live vault has no swap function. This router read is not a trade.",
+      };
+    } catch (error) {
+      return { status: "NO_ROUTE", venue: "uniswap-v2", amountIn: amount, executable: false, reason: error.message };
+    }
+  });
 
   app.get("/v1/vault/:owner", async (req, reply) => {
     const vault = await readers.readVault(deps.client, req.params.owner);
@@ -79,6 +104,21 @@ export function createServer(deps) {
     return { token };
   });
 
+  app.post("/v1/grants/revoke", async (req, reply) => {
+    const owner = await sessionOwner(deps, req);
+    if (!owner) return reply.code(401).send({ error: { code: "session", message: "Sign in again." } });
+    const bearer = req.body?.bearer;
+    if (!bearer) return reply.code(400).send({ error: { code: "bearer", message: "Bearer is required." } });
+    const grant = await deps.store.readGrant(bearer);
+    if (!grant) return reply.code(404).send({ error: { code: "grant", message: "Grant is already revoked or expired." } });
+    const vault = await readers.readVault(deps.client, owner);
+    if (!vault || vault.vault.toLowerCase() !== String(grant.vault).toLowerCase()) {
+      return reply.code(403).send({ error: { code: "vault", message: "This session does not own that grant." } });
+    }
+    await deps.store.revokeGrant(bearer);
+    return { revoked: true };
+  });
+
   app.post("/v1/grants", async (req, reply) => {
     const owner = await sessionOwner(deps, req);
     if (!owner) return reply.code(401).send({ error: { code: "session", message: "Sign in again." } });
@@ -114,7 +154,7 @@ export function createServer(deps) {
     return submit(deps, readers, req.body?.action, req.body?.signature, reply);
   });
 
-  app.post("/mcp", async (req, reply) => handleMcp(deps, req, reply));
+  app.post("/mcp", async (req, reply) => handleMcp(deps, readers, req, reply));
 
   return app;
 }
@@ -255,7 +295,7 @@ function human(reason) {
   return text[reason] ?? "Denied.";
 }
 
-async function handleMcp(deps, req, reply) {
+async function handleMcp(deps, readers, req, reply) {
   const header = req.headers.authorization ?? "";
   const bearer = header.startsWith("Bearer ") ? header.slice(7) : "";
   const body = req.body ?? {};
@@ -276,6 +316,7 @@ async function handleMcp(deps, req, reply) {
           { name: "get_vault", description: "Read the owner vault from Arc.", inputSchema: { type: "object", properties: { owner: { type: "string" } }, required: ["owner"] } },
           { name: "prepare_send", description: "Return EIP-712 data for the agent to sign. Does not move USDC.", inputSchema: { type: "object", properties: { owner: { type: "string" }, recipient: { type: "string" }, amount: { type: "string" }, grantId: { type: "string" }, deadline: { type: "string" } }, required: ["owner", "recipient", "amount", "grantId", "deadline"] } },
           { name: "submit_signed_send", description: "Relay a signature. Cannot change the signed fields.", inputSchema: { type: "object", properties: { action: { type: "object" }, signature: { type: "string" } }, required: ["action", "signature"] } },
+          { name: "verify", description: "Read a receipt from Arc. Does not invent one.", inputSchema: { type: "object", properties: { actionHash: { type: "string" } }, required: ["actionHash"] } },
         ],
       },
     };
@@ -303,6 +344,11 @@ async function handleMcp(deps, req, reply) {
         policyVersion: vault.policyVersion.toString(),
       });
       return toolResult(id, { summary: humanAmount(args.amount, args.recipient), typedData: typed, note: "Sign this with the agent key. Beacon does not have that key." });
+    }
+    if (name === "verify") {
+      const receipt = await readers.readReceipt(deps.client, args.actionHash);
+      if (!receipt.exists) return toolResult(id, { error: "no_receipt" });
+      return toolResult(id, receipt);
     }
     if (name === "submit_signed_send") {
       if (args.action?.agent?.toLowerCase() !== grant.agent.toLowerCase()) return toolResult(id, { error: "agent" });

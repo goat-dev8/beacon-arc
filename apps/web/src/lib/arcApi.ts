@@ -1,6 +1,8 @@
+import { getAddress } from "viem";
 import { apiBase } from "./publicEnv";
 import { publicClient } from "./wallet";
 import { CONTRACTS } from "./chain";
+import { readArcReceipt } from "./onchainReceipt";
 
 export type ArcCapability = { executable: boolean; reason?: string };
 
@@ -70,6 +72,13 @@ const v2QuoteAbi = [
 
 const V2_ROUTER = "0x1f7d7550b1b028f7571e69a784071f0205fd2efa" as const;
 const EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1" as const;
+const MESSENGER = "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d" as const;
+const TRANSMITTER = "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64" as const;
+const PQ = "0x1800000000000000000000000000000000000004" as const;
+const IDENTITY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as const;
+const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" as const;
+const SEND_SELECTOR = "5384627c";
+const SWAP_SELECTOR = "38ed1739";
 
 /** Read the router from Arc. This does not send a transaction. */
 export async function readRouterQuote(amount = "10000"): Promise<SwapQuote> {
@@ -263,6 +272,56 @@ export async function readAllowedRecipients(vault: string): Promise<string[]> {
   return [...state.entries()].filter(([, allowed]) => allowed).map(([recipient]) => recipient);
 }
 
+const domainAbi = [
+  { type: "function", name: "localDomain", stateMutability: "view", inputs: [], outputs: [{ type: "uint32" }] },
+] as const;
+
+export type FlowReceipt = {
+  exists: boolean;
+  vault?: string;
+  agent?: string;
+  recipient?: string;
+  amount?: string;
+  nonce?: string;
+};
+
+export type FlowRail = {
+  block: string;
+  routerBytes?: number;
+  vaultBytes?: number;
+  vaultHasSend?: boolean;
+  vaultHasSwap?: boolean;
+  messengerBytes?: number;
+  transmitterBytes?: number;
+  domain?: number | null;
+  pqBytes?: number;
+  identityBytes?: number;
+  identityImpl?: string | null;
+  implBytes?: number;
+  receipt?: FlowReceipt | null;
+  overCapStatus?: "reverted" | "success" | "missing";
+  capabilityReason?: string;
+};
+
+function byteLength(code?: string | null): number {
+  if (!code || code === "0x") return 0;
+  return (code.length - 2) / 2;
+}
+
+function hasSelector(code: string | undefined, selector: string): boolean {
+  return Boolean(code && code.toLowerCase().includes(selector));
+}
+
+function slotAddress(slot?: string | null): string | null {
+  if (!slot || slot === `0x${"0".repeat(64)}`) return null;
+  const raw = `0x${slot.slice(-40)}`;
+  try {
+    return getAddress(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export function answerFlow(
   prompt: string,
   read: {
@@ -272,6 +331,7 @@ export function answerFlow(
     quote?: { status: string; amountOut?: string } | null;
     grant?: FlowGrant | null;
     allowed?: string[] | null;
+    rail?: FlowRail | null;
   },
 ): string {
   const q = prompt.toLowerCase();
@@ -292,63 +352,98 @@ export function answerFlow(
       ? "This wallet has no vault on the factory. Create is the only next step, and a second create reverts once one exists."
       : "Connect a wallet. Beacon reads that wallet's vault from the factory.";
 
+  const rail = read.rail;
+  const blockLine = rail?.block ? `Read at block ${rail.block}.` : "";
+
   if (q.includes("swap")) {
     const quoted = read.quote?.status === "quoted" && read.quote.amountOut
-      ? `10000 USDC base units quote ${read.quote.amountOut} EURC base units.`
-      : "Uniswap V2 returned no route for 10000 USDC base units.";
+      ? `getAmountsOut(10000, [USDC, EURC]) returned ${read.quote.amountOut} EURC base units.`
+      : "getAmountsOut for 10000 USDC base units returned no output.";
+    const bytecode = rail?.vaultBytes != null
+      ? `Vault bytecode is ${rail.vaultBytes} bytes. It ${rail.vaultHasSend ? "contains" : "does not contain"} executeSend \`${SEND_SELECTOR}\` and ${rail.vaultHasSwap ? "contains" : "does not contain"} swapExactTokensForTokens \`${SWAP_SELECTOR}\`.`
+      : "The vault bytecode was not read, so Beacon will not claim a swap function.";
     return [
       "## Swap quote",
-      quoted,
-      `- Router: \`${V2_ROUTER}\``,
-      "- Path: USDC `0x3600000000000000000000000000000000000000` to EURC `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1`",
-      "This vault's bytecode has executeSend only. Beacon will not send a swap transaction, and this quote is not a fill.",
-    ].join("\n");
+      blockLine,
+      `- Router \`${V2_ROUTER}\`${rail?.routerBytes != null ? ` is ${rail.routerBytes} bytes` : ""}.`,
+      `- ${quoted}`,
+      "- Path: USDC `0x3600000000000000000000000000000000000000` to EURC `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1`.",
+      bytecode,
+      "Beacon will not send a swap. This quote is not a fill.",
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("cctp") || q.includes("bridge")) {
+    const domain = rail?.domain == null ? "localDomain() was not read." : `MessageTransmitterV2 localDomain() returned ${rail.domain}.`;
     return [
       "## CCTP",
-      "Arc publishes CCTP domain 26.",
-      "- TokenMessengerV2: https://explorer.arc.io/address/0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
-      "This vault has no burn or mint function. Beacon will not call a burn a completed bridge.",
-    ].join("\n");
+      blockLine,
+      `- TokenMessengerV2 \`${MESSENGER}\`${rail?.messengerBytes != null ? ` is ${rail.messengerBytes} bytes` : ""}.`,
+      `- MessageTransmitterV2 \`${TRANSMITTER}\`${rail?.transmitterBytes != null ? ` is ${rail.transmitterBytes} bytes` : ""}. ${domain}`,
+      "This vault has no burn or mint function. A burn is not a completed bridge, so Beacon will not start one.",
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("private")) {
     return [
       "## Privacy",
-      "Arc's docs list Privacy Sector as planned, not as a mainnet call.",
+      blockLine,
+      "Arc's published mainnet address list has no Privacy Sector contract to call.",
       "https://docs.arc.io/arc/concepts/opt-in-privacy",
       "Beacon will not report a private transfer.",
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("pq")) {
+    const size = rail?.pqBytes == null
+      ? "The precompile bytecode was not read."
+      : `That address is ${rail.pqBytes} ${rail.pqBytes === 1 ? "byte" : "bytes"} of code on this read.`;
     return [
       "## Post-quantum",
-      "Arc lists PQ signature verify at `0x1800000000000000000000000000000000000004`.",
-      "On mainnet that address is 1 byte of code. This wallet does not produce a PQ signature.",
-    ].join("\n");
+      blockLine,
+      `- PQ verify precompile \`${PQ}\`.`,
+      size,
+      rail?.pqBytes === 1
+        ? "A 1-byte precompile is not a signer. This wallet does not produce a PQ signature."
+        : "Beacon will not treat this precompile as a signer until its ABI is pinned.",
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("x402")) {
     return [
       "## x402",
-      "A settled x402 payment needs a Circle facilitator key and a payment proof.",
-      "No facilitator key is configured, so Beacon has nothing to settle.",
-    ].join("\n");
+      blockLine,
+      read.rail?.capabilityReason || "x402 needs a Circle facilitator key and a payment proof.",
+      "No facilitator key is configured, so there is no payment proof and nothing is marked settled.",
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("8004")) {
+    const impl = rail?.identityImpl
+      ? `EIP-1967 implementation \`${rail.identityImpl}\`${rail.implBytes != null ? ` is ${rail.implBytes} bytes` : ""}.`
+      : "The EIP-1967 implementation slot was not read.";
     return [
       "## ERC-8004",
-      "Identity proxy: https://explorer.arc.io/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
-      "Beacon has not matched the implementation selectors and has not registered an agent. The old 0G agent id is not reused.",
-    ].join("\n");
+      blockLine,
+      `- Identity proxy \`${IDENTITY}\`${rail?.identityBytes != null ? ` is ${rail.identityBytes} bytes` : ""}.`,
+      impl,
+      "Beacon has not matched register selectors on that implementation and has not registered an agent. The old 0G agent id is not reused.",
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("verify") || q.includes("receipt")) {
+    const row = rail?.receipt;
+    const body = row?.exists
+      ? [
+          `Registry receipts(\`${KNOWN_RECEIPT}\`) exists.`,
+          `- Vault \`${row.vault}\``,
+          `- Agent \`${row.agent}\``,
+          `- Recipient \`${row.recipient}\``,
+          `- Amount ${row.amount ? usdc(row.amount) : "unread"}, ${row.amount ?? "unread"} base units. Nonce ${row.nonce ?? "unread"}.`,
+        ]
+      : ["The registry read did not return a receipt row. Beacon will not invent one."];
     return [
       "## Receipt",
-      "The recorded send is 0.01 USDC, 10000 base units.",
-      `- Receipt: ${SITE}/verify/${KNOWN_RECEIPT}`,
+      blockLine,
+      ...body,
+      `- Verify: ${SITE}/verify/${KNOWN_RECEIPT}`,
       `- Transaction: ${EXPLORER}/tx/${KNOWN_SEND}`,
       "A page that is not a 32-byte action hash is not a receipt.",
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("pause")) {
     return vault
@@ -362,16 +457,18 @@ export function answerFlow(
       : "Only the vault owner can pause. Connect that wallet to read the pause state.";
   }
   if (q.includes("cap")) {
-    return vault
-      ? [
-          "## Cap",
-          `- Per send: ${usdc(vault.maxPerTx)}`,
-          `- Window: ${usdc(vault.windowLimit)}`,
-          `- Spent in the window: ${usdc(vault.windowSpent)}`,
-          "A larger send reverts and does not move USDC. The nonce does not advance on that revert.",
-          `- Over-cap transaction: ${EXPLORER}/tx/${KNOWN_OVER_CAP}`,
-        ].join("\n")
-      : "A send above the vault cap reverts. Connect a wallet to read this cap.";
+    const over = rail?.overCapStatus
+      ? `- Over-cap transaction ${KNOWN_OVER_CAP} status on this read: ${rail.overCapStatus}. ${EXPLORER}/tx/${KNOWN_OVER_CAP}`
+      : `- Over-cap transaction: ${EXPLORER}/tx/${KNOWN_OVER_CAP}`;
+    return [
+      "## Cap",
+      blockLine,
+      vault ? `- Per send: ${usdc(vault.maxPerTx)}` : "- Connect a wallet to read this vault's cap.",
+      vault ? `- Window: ${usdc(vault.windowLimit)}` : "",
+      vault ? `- Spent in the window: ${usdc(vault.windowSpent)}` : "",
+      "A larger send reverts and does not move USDC. The nonce does not advance on that revert.",
+      over,
+    ].filter(Boolean).join("\n");
   }
   if (q.includes("send") || q.includes("prepare")) {
     const grant = read.grant;
@@ -404,6 +501,88 @@ export function answerFlow(
     ].filter(Boolean).join("\n");
   }
   return `${head}\nThis chat reads Arc and does not move USDC.`;
+}
+
+export async function answerLiveFlow(prompt: string, wallet: string | null): Promise<string> {
+  const q = prompt.toLowerCase();
+  const vault = wallet ? await fetchArcVault(wallet).catch(() => null) : null;
+  const client = publicClient();
+  const wantSwap = q.includes("swap");
+  const wantCctp = q.includes("cctp") || q.includes("bridge");
+  const wantPq = q.includes("pq");
+  const wantErc = q.includes("8004");
+  const wantVerify = q.includes("verify") || q.includes("receipt");
+  const wantCap = q.includes("cap");
+  const wantX402 = q.includes("x402");
+  const wantGrant = /send|prepare|vault|policy|pause|cap/.test(q);
+  const wantAllow = q.includes("who can") || (q.includes("allow") && !q.includes("send") && !q.includes("prepare"));
+  const vaultAddress = (vault?.vault ?? CONTRACTS.vault) as `0x${string}`;
+
+  const [block, quote, grant, allowed, routerCode, vaultCode, messengerCode, transmitterCode, domain, pqCode, identityCode, implSlot, receipt, overCap, capabilities] = await Promise.all([
+    client.getBlockNumber().catch(() => null),
+    wantSwap ? readRouterQuote("10000") : Promise.resolve(null),
+    vault && wantGrant ? readFlowGrant(vault.vault).catch(() => null) : Promise.resolve(null),
+    vault && wantAllow ? readAllowedRecipients(vault.vault).catch(() => []) : Promise.resolve(null),
+    wantSwap ? client.getBytecode({ address: V2_ROUTER }).catch(() => undefined) : Promise.resolve(undefined),
+    wantSwap ? client.getBytecode({ address: vaultAddress }).catch(() => undefined) : Promise.resolve(undefined),
+    wantCctp ? client.getBytecode({ address: MESSENGER }).catch(() => undefined) : Promise.resolve(undefined),
+    wantCctp ? client.getBytecode({ address: TRANSMITTER }).catch(() => undefined) : Promise.resolve(undefined),
+    wantCctp ? client.readContract({ address: TRANSMITTER, abi: domainAbi, functionName: "localDomain" }).catch(() => null) : Promise.resolve(null),
+    wantPq ? client.getBytecode({ address: PQ }).catch(() => undefined) : Promise.resolve(undefined),
+    wantErc ? client.getBytecode({ address: IDENTITY }).catch(() => undefined) : Promise.resolve(undefined),
+    wantErc ? client.getStorageAt({ address: IDENTITY, slot: IMPL_SLOT }).catch(() => undefined) : Promise.resolve(undefined),
+    wantVerify ? readArcReceipt(KNOWN_RECEIPT).catch(() => null) : Promise.resolve(null),
+    wantCap ? client.getTransactionReceipt({ hash: KNOWN_OVER_CAP as `0x${string}` }).catch(() => null) : Promise.resolve(null),
+    wantX402 ? fetchArcCapabilities().catch(() => null) : Promise.resolve(null),
+  ]);
+
+  const identityImpl = slotAddress(implSlot);
+  const implBytes = identityImpl
+    ? byteLength(await client.getBytecode({ address: identityImpl as `0x${string}` }).catch(() => undefined))
+    : undefined;
+
+  const rail: FlowRail = { block: block == null ? "" : block.toString() };
+  if (wantSwap) {
+    rail.routerBytes = byteLength(routerCode);
+    rail.vaultBytes = byteLength(vaultCode);
+    rail.vaultHasSend = hasSelector(vaultCode, SEND_SELECTOR);
+    rail.vaultHasSwap = hasSelector(vaultCode, SWAP_SELECTOR);
+  }
+  if (wantCctp) {
+    rail.messengerBytes = byteLength(messengerCode);
+    rail.transmitterBytes = byteLength(transmitterCode);
+    rail.domain = domain == null ? null : Number(domain);
+  }
+  if (wantPq) rail.pqBytes = byteLength(pqCode);
+  if (wantErc) {
+    rail.identityBytes = byteLength(identityCode);
+    rail.identityImpl = identityImpl;
+    rail.implBytes = implBytes;
+  }
+  if (wantVerify && receipt) {
+    rail.receipt = {
+      exists: receipt.exists,
+      vault: receipt.vault,
+      agent: receipt.agent,
+      recipient: receipt.recipient,
+      amount: receipt.amount,
+      nonce: receipt.nonce,
+    };
+  }
+  if (wantCap) {
+    rail.overCapStatus = overCap?.status === "reverted" ? "reverted" : overCap?.status === "success" ? "success" : "missing";
+  }
+  if (wantX402) rail.capabilityReason = capabilities?.x402.reason;
+
+  return answerFlow(prompt, {
+    vault,
+    ownerConnected: Boolean(wallet),
+    wallet,
+    quote,
+    grant,
+    allowed,
+    rail,
+  });
 }
 
 const CAPABILITY_NAMES = ["send", "swap", "cctp", "privacy", "pq", "x402", "erc8004"] as const;

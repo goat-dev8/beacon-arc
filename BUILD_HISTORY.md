@@ -282,3 +282,10 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **Typecheck:** `npx tsc -p apps/web/tsconfig.app.json --noEmit` passed, exit 0.
 - **Vercel:** `dpl_HSZUF431788gCVSDA7gSNTBR4LwZ`, ready, aliased to https://beacon-arc-one.vercel.app. `/flow/mcp` shows the corrected sentence. “Call initialize with no bearer” returned `Bearer required.`
 - **Not signed.** The acceptance gate is not green.
+
+## 2026-10-12 — Flow chips read Arc before they answer
+
+- **Reads:** a swap chip calls `getAmountsOut` and checks the vault bytecode for `executeSend` `5384627c` and `swapExactTokensForTokens` `38ed1739`. CCTP reads TokenMessengerV2 and MessageTransmitterV2, including `localDomain()`. PQ reads the precompile size. ERC-8004 reads the identity proxy and its EIP-1967 implementation. Verify reads `receipts(bytes32)`. Cap reads the over-cap transaction status.
+- **Production:** `dpl_9XsgV3UR8dzGUvNAGDhnh4wudy3N` at https://beacon-arc-one.vercel.app/flow. “Can I swap USDC?” at block 25475778 quoted 8276 EURC base units, router 21902 bytes, vault 5047 bytes, send selector present, swap selector absent. “Can I bridge USDC with CCTP?” at block 25475862 showed TokenMessengerV2 at 2175 bytes and `localDomain()` 26.
+- **Test:** `npx vitest run src/lib/arcFlow.test.ts` passed 3 of 3 after the cap answer kept the reverted receipt when no wallet vault was loaded.
+- **Not signed.** Beacon still does not trade, burn, or settle those rails. The acceptance gate is not green.

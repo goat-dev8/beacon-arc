@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
-import { answerFlow, fetchArcVault, fetchSwapQuote, readAllowedRecipients, readFlowGrant } from "@/lib/arcApi";
+import { answerLiveFlow } from "@/lib/arcApi";
 import { openZeroGFaucet } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { ChatColumn } from "@/components/flow/ChatColumn";
@@ -131,21 +131,10 @@ export function FlowPage() {
   }
 
   const chat = useMutation({
-    mutationFn: async (message: string) => {
-      const q = message.toLowerCase();
-      const vault = wallet ? await fetchArcVault(wallet).catch(() => null) : null;
-      const [quote, grant, allowed] = await Promise.all([
-        /swap/i.test(q) ? fetchSwapQuote("10000").catch(() => null) : Promise.resolve(null),
-        vault && /send|prepare|vault|policy|pause|cap/i.test(q) ? readFlowGrant(vault.vault).catch(() => null) : Promise.resolve(null),
-        vault && (/who can/.test(q) || (/allow/.test(q) && !/send|prepare/.test(q)))
-          ? readAllowedRecipients(vault.vault).catch(() => [])
-          : Promise.resolve(null),
-      ]);
-      return {
-        text: answerFlow(message, { vault, ownerConnected: Boolean(wallet), wallet, quote, grant, allowed }),
-        cards: [] as AgentCard[],
-      };
-    },
+    mutationFn: async (message: string) => ({
+      text: await answerLiveFlow(message, wallet),
+      cards: [] as AgentCard[],
+    }),
     onSuccess: (data, message) => {
       setDismissedExecKey(null);
       setMessages((m) => [

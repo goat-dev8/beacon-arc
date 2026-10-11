@@ -267,3 +267,11 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **Git:** pushed `4c67940` to `https://github.com/goat-dev8/beacon-arc` `main`. No secret values were committed.
 - **Render:** service `beacon-arc-api` went live on `4c67940`. `/health` returned ok. `/ready` returned chainId 5042. `/v1/capabilities` returns the same off reasons as the site. `POST /v1/grants/revoke` without a bearer returns 401, where the previous deploy returned 404. Env names present: `ARC_RPC_URL`, `CHAIN_ID`, `EXECUTOR_PRIVATE_KEY`, `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, `BEACON_VAULT_FACTORY`, `BEACON_RECEIPT_REGISTRY`, `ARC_USDC`, `NODE_VERSION`.
 - **Not signed.** The acceptance gate is not green. Swap, CCTP, privacy, PQ, x402, and ERC-8004 stay off.
+
+## 2026-10-12 — A send question was answered as the allowlist
+
+- **Bug:** “Prepare a USDC send to an allowlisted recipient.” matched the word `allow` inside `allowlisted`, so the chat returned the allowlist sentence.
+- **Fix:** a prompt that says send or prepare reads the vault and grant 1 and answers the send. “Who can this vault pay?” reads `RecipientAllowed` logs.
+- **Production check:** the send answer now lists vault `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`, owner `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034`, executor `0x412045b7c64d471DE57024f11E080289e6082172`, grant 1 agent `0xc3b183D5e4436C20282650348BE2D6c94c4142dc`, and says this wallet is not that agent. The allowlist answer lists `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` as allowed.
+- **Vercel:** `dpl_3Lq5hJjpY5VWthk7Rma2gEMZAg9R`, ready, aliased to https://beacon-arc-one.vercel.app.
+- **Not signed.** A quote is still not a trade. This chat does not move USDC.

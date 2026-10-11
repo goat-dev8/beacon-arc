@@ -182,64 +182,228 @@ export async function fetchArcVault(owner: string): Promise<ArcVault> {
 const KNOWN_RECEIPT = "0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a";
 const KNOWN_SEND = "0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab";
 const KNOWN_OVER_CAP = "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83";
+const SITE = "https://beacon-arc-one.vercel.app";
+const EXPLORER = "https://explorer.arc.io";
+
+const grantViewAbi = [
+  {
+    type: "function",
+    name: "grants",
+    stateMutability: "view",
+    inputs: [{ name: "grantId", type: "uint256" }],
+    outputs: [
+      { name: "agent", type: "address" },
+      { name: "maxPerTx", type: "uint256" },
+      { name: "expiry", type: "uint64" },
+      { name: "scopes", type: "uint8" },
+      { name: "active", type: "bool" },
+    ],
+  },
+] as const;
+
+const allowedEvent = {
+  type: "event",
+  name: "RecipientAllowed",
+  inputs: [
+    { name: "recipient", type: "address", indexed: false },
+    { name: "allowed", type: "bool", indexed: false },
+  ],
+} as const;
+
+export type FlowGrant = {
+  agent: string;
+  maxPerTx: string;
+  expiry: number;
+  scopes: number;
+  active: boolean;
+};
+
+export async function readFlowGrant(vault: string, grantId = 1n): Promise<FlowGrant> {
+  const row = await publicClient().readContract({
+    address: vault as `0x${string}`,
+    abi: grantViewAbi,
+    functionName: "grants",
+    args: [grantId],
+  });
+  return {
+    agent: row[0],
+    maxPerTx: row[1].toString(),
+    expiry: Number(row[2]),
+    scopes: Number(row[3]),
+    active: Boolean(row[4]),
+  };
+}
+
+export async function readAllowedRecipients(vault: string): Promise<string[]> {
+  const client = publicClient();
+  const latest = await client.getBlockNumber();
+  const first = 24_848_337n;
+  const chunk = 4_000n;
+  const ranges: Array<[bigint, bigint]> = [[first, first + chunk - 1n > latest ? latest : first + chunk - 1n]];
+  const recentFrom = latest > chunk * 3n ? latest - chunk * 3n + 1n : first;
+  if (recentFrom > ranges[0][1]) {
+    for (let from = recentFrom; from <= latest; from += chunk) {
+      ranges.push([from, from + chunk - 1n > latest ? latest : from + chunk - 1n]);
+    }
+  }
+  const parts = await Promise.all(
+    ranges.map(([from, to]) =>
+      client.getLogs({
+        address: vault as `0x${string}`,
+        event: allowedEvent,
+        fromBlock: from,
+        toBlock: to,
+      }),
+    ),
+  );
+  const state = new Map<string, boolean>();
+  for (const log of parts.flat()) {
+    if (log.args.recipient) state.set(log.args.recipient, Boolean(log.args.allowed));
+  }
+  return [...state.entries()].filter(([, allowed]) => allowed).map(([recipient]) => recipient);
+}
 
 export function answerFlow(
   prompt: string,
   read: {
     vault: ArcVault | null;
     ownerConnected: boolean;
+    wallet?: string | null;
     quote?: { status: string; amountOut?: string } | null;
+    grant?: FlowGrant | null;
+    allowed?: string[] | null;
   },
 ): string {
   const q = prompt.toLowerCase();
   const vault = read.vault;
   const head = vault
-    ? `${vault.summary}. Vault ${vault.vault}. Policy v${vault.policyVersion}. Nonce ${vault.nonce}. Cap ${usdc(vault.maxPerTx)} per send. Window ${usdc(vault.windowLimit)}. ${vault.paused ? "The vault is paused." : "The vault is active."}`
+    ? [
+        "## Vault",
+        `- Balance: ${vault.summary.replace(" in the vault", "")}`,
+        `- Vault: \`${vault.vault}\``,
+        `- Owner: \`${vault.owner}\``,
+        `- Executor: \`${vault.executor}\``,
+        `- Policy v${vault.policyVersion}. Nonce ${vault.nonce}.`,
+        `- Cap ${usdc(vault.maxPerTx)} per send. Window ${usdc(vault.windowLimit)}. Spent ${usdc(vault.windowSpent)}.`,
+        vault.paused ? "- The vault is paused." : "- The vault is active.",
+        `- Explorer: ${EXPLORER}/address/${vault.vault}`,
+      ].join("\n")
     : read.ownerConnected
-      ? "This wallet has no vault on the factory."
-      : "Connect a wallet to read its vault.";
+      ? "This wallet has no vault on the factory. Create is the only next step, and a second create reverts once one exists."
+      : "Connect a wallet. Beacon reads that wallet's vault from the factory.";
 
   if (q.includes("swap")) {
     const quoted = read.quote?.status === "quoted" && read.quote.amountOut
-      ? `Uniswap V2 quotes 0.01 USDC as ${read.quote.amountOut} EURC base units.`
-      : "Uniswap V2 returned no route for 0.01 USDC.";
-    return `${quoted} The live vault only has executeSend, so Beacon will not trade.`;
+      ? `10000 USDC base units quote ${read.quote.amountOut} EURC base units.`
+      : "Uniswap V2 returned no route for 10000 USDC base units.";
+    return [
+      "## Swap quote",
+      quoted,
+      `- Router: \`${V2_ROUTER}\``,
+      "- Path: USDC `0x3600000000000000000000000000000000000000` to EURC `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1`",
+      "This vault's bytecode has executeSend only. Beacon will not send a swap transaction, and this quote is not a fill.",
+    ].join("\n");
   }
   if (q.includes("cctp") || q.includes("bridge")) {
-    return "CCTP is on Arc as domain 26. TokenMessengerV2 is 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d. This vault cannot burn or mint, so Beacon will not call a burn a completed bridge.";
+    return [
+      "## CCTP",
+      "Arc publishes CCTP domain 26.",
+      "- TokenMessengerV2: https://explorer.arc.io/address/0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+      "This vault has no burn or mint function. Beacon will not call a burn a completed bridge.",
+    ].join("\n");
   }
   if (q.includes("private")) {
-    return "Arc Privacy Sector is planned and is not on mainnet. Beacon will not report a private transfer.";
+    return [
+      "## Privacy",
+      "Arc's docs list Privacy Sector as planned, not as a mainnet call.",
+      "https://docs.arc.io/arc/concepts/opt-in-privacy",
+      "Beacon will not report a private transfer.",
+    ].join("\n");
   }
   if (q.includes("pq")) {
-    return "Arc lists a PQ signature-verify precompile at 0x1800…0004. On mainnet that address is 1 byte of code. This wallet is not a PQ wallet.";
+    return [
+      "## Post-quantum",
+      "Arc lists PQ signature verify at `0x1800000000000000000000000000000000000004`.",
+      "On mainnet that address is 1 byte of code. This wallet does not produce a PQ signature.",
+    ].join("\n");
   }
   if (q.includes("x402")) {
-    return "x402 needs a Circle facilitator key. None is configured, so there is no payment proof and nothing is marked settled.";
+    return [
+      "## x402",
+      "A settled x402 payment needs a Circle facilitator key and a payment proof.",
+      "No facilitator key is configured, so Beacon has nothing to settle.",
+    ].join("\n");
   }
   if (q.includes("8004")) {
-    return "ERC-8004 registry proxies are on Arc. Beacon has not matched their implementation selectors and has not registered an agent.";
+    return [
+      "## ERC-8004",
+      "Identity proxy: https://explorer.arc.io/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+      "Beacon has not matched the implementation selectors and has not registered an agent. The old 0G agent id is not reused.",
+    ].join("\n");
   }
   if (q.includes("verify") || q.includes("receipt")) {
-    return `The recorded send is 0.01 USDC, 10000 base units. Receipt ${KNOWN_RECEIPT}. Transaction ${KNOWN_SEND}. Open /verify/${KNOWN_RECEIPT}.`;
+    return [
+      "## Receipt",
+      "The recorded send is 0.01 USDC, 10000 base units.",
+      `- Receipt: ${SITE}/verify/${KNOWN_RECEIPT}`,
+      `- Transaction: ${EXPLORER}/tx/${KNOWN_SEND}`,
+      "A page that is not a 32-byte action hash is not a receipt.",
+    ].join("\n");
   }
   if (q.includes("pause")) {
     return vault
-      ? `Only the owner can pause or resume. The executor cannot. ${vault.paused ? "The vault is paused." : "The vault is active."} Owner ${vault.owner}.`
+      ? [
+          "## Pause",
+          `Only owner \`${vault.owner}\` can pause or resume.`,
+          `Executor \`${vault.executor}\` cannot change policy or pause.`,
+          vault.paused ? "The vault is paused." : "The vault is active.",
+          `The owner button is on ${SITE}/flow/desk`,
+        ].join("\n")
       : "Only the vault owner can pause. Connect that wallet to read the pause state.";
   }
   if (q.includes("cap")) {
     return vault
-      ? `The cap is ${usdc(vault.maxPerTx)} per send and ${usdc(vault.windowLimit)} per window. A larger send reverts and does not move USDC. Over-cap transaction ${KNOWN_OVER_CAP}.`
+      ? [
+          "## Cap",
+          `- Per send: ${usdc(vault.maxPerTx)}`,
+          `- Window: ${usdc(vault.windowLimit)}`,
+          `- Spent in the window: ${usdc(vault.windowSpent)}`,
+          "A larger send reverts and does not move USDC. The nonce does not advance on that revert.",
+          `- Over-cap transaction: ${EXPLORER}/tx/${KNOWN_OVER_CAP}`,
+        ].join("\n")
       : "A send above the vault cap reverts. Connect a wallet to read this cap.";
   }
-  if (q.includes("allow") || q.includes("pay")) {
-    return "The owner allowlist and blocklist decide who can be paid. An empty address does not broadcast. The recorded send paid the owner.";
-  }
   if (q.includes("send") || q.includes("prepare")) {
-    return `${head} Only the registered agent wallet can sign a send. This chat does not sign and does not move USDC.`;
+    const grant = read.grant;
+    const walletIsAgent = Boolean(
+      read.wallet && grant?.active && grant.agent !== "0x0000000000000000000000000000000000000000" && read.wallet.toLowerCase() === grant.agent.toLowerCase(),
+    );
+    const lines = ["## Send", head];
+    if (grant?.active && grant.agent !== "0x0000000000000000000000000000000000000000") {
+      lines.push(`- Grant 1 agent: \`${grant.agent}\``);
+      lines.push(`- Grant max ${usdc(grant.maxPerTx)}. Scope ${grant.scopes}. Expires ${new Date(grant.expiry * 1000).toISOString()}.`);
+      lines.push(walletIsAgent
+        ? "This wallet is that agent. Open the vault, unlock the browser session, and sign the exact action."
+        : "This wallet is not that agent. Beacon will not ask it to sign the send.");
+    } else {
+      lines.push("Grant 1 has no active agent. The owner registers one on the vault page. An empty agent field does not use this wallet.");
+    }
+    lines.push(`- Vault form: ${SITE}/flow/desk`);
+    lines.push("This chat does not sign and does not move USDC.");
+    return lines.join("\n");
   }
-  return `${head} This chat reads Arc and does not move USDC.`;
+  if (q.includes("who can") || (q.includes("allow") && !q.includes("send"))) {
+    const listed = read.allowed ?? [];
+    return [
+      "## Allowlist",
+      listed.length
+        ? listed.map((addr) => `- \`${addr}\` is allowed`).join("\n")
+        : "- No RecipientAllowed log was found in the vault's first blocks or the latest window.",
+      "An empty address does not broadcast. A blocked recipient reverts.",
+      vault ? `- Vault: ${EXPLORER}/address/${vault.vault}` : "",
+    ].filter(Boolean).join("\n");
+  }
+  return `${head}\nThis chat reads Arc and does not move USDC.`;
 }
 
 const CAPABILITY_NAMES = ["send", "swap", "cctp", "privacy", "pq", "x402", "erc8004"] as const;

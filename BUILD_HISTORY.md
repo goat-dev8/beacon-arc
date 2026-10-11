@@ -275,3 +275,10 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **Production check:** the send answer now lists vault `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`, owner `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034`, executor `0x412045b7c64d471DE57024f11E080289e6082172`, grant 1 agent `0xc3b183D5e4436C20282650348BE2D6c94c4142dc`, and says this wallet is not that agent. The allowlist answer lists `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` as allowed.
 - **Vercel:** `dpl_3Lq5hJjpY5VWthk7Rma2gEMZAg9R`, ready, aliased to https://beacon-arc-one.vercel.app.
 - **Not signed.** A quote is still not a trade. This chat does not move USDC.
+
+## 2026-10-12 — Agents page names the live verify tool
+
+- **Copy:** the agents page said revoke and verify were absent. The live API already lists verify, and revoke without a bearer returns 401. The page now says that. The initialize button uses the same solid fill as the vault actions.
+- **Typecheck:** `npx tsc -p apps/web/tsconfig.app.json --noEmit` passed, exit 0.
+- **Vercel:** `dpl_HSZUF431788gCVSDA7gSNTBR4LwZ`, ready, aliased to https://beacon-arc-one.vercel.app. `/flow/mcp` shows the corrected sentence. “Call initialize with no bearer” returned `Bearer required.`
+- **Not signed.** The acceptance gate is not green.

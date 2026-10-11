@@ -7,7 +7,7 @@ const TOOLS = [
   { name: "get_vault", effect: "Read the owner vault from Arc." },
   { name: "prepare_send", effect: "Return the EIP-712 action. The agent must sign it." },
   { name: "submit_signed_send", effect: "Relay the signature. A changed field is rejected." },
-  { name: "verify", effect: "Read a receipt. Not listed by the live API yet." },
+  { name: "verify", effect: "Read a receipt from Arc. A missing row is not a receipt." },
 ];
 
 export function ArcMcpPage() {
@@ -20,7 +20,7 @@ export function ArcMcpPage() {
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">MCP</p>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Agent access</h1>
       <p className="mt-2 max-w-2xl text-sm text-[var(--p-muted)]">
-        The bearer authenticates this API. It does not sign a transfer. Jobs, image generation, and bridge quotes are not tools. The live API lists capabilities, get_vault, prepare_send, and submit_signed_send. Revoke and the verify tool are not on that API yet.
+        The bearer authenticates this API. It does not sign a transfer. Jobs, image generation, and bridge quotes are not tools. The live API lists capabilities, get_vault, prepare_send, submit_signed_send, and verify. Revoke without a bearer returns 401.
       </p>
 
       <section className="mt-6 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
@@ -30,7 +30,7 @@ export function ArcMcpPage() {
           Create the bearer on the <Link className="underline" to="/flow/desk">vault page</Link> after the browser session unlock. Revoke it there. The same bearer then gets 401.
         </p>
         <button
-          className="mt-4 rounded-full border border-[var(--p-border)] px-4 py-2 text-sm"
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--p-accent)] px-4 py-2.5 text-sm font-semibold text-[#062116] disabled:cursor-not-allowed disabled:bg-[#3a4149] disabled:text-[#f7f8f8] disabled:opacity-100"
           type="button"
           disabled={busy}
           onClick={() => {

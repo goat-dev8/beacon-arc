@@ -754,3 +754,51 @@ export function prepareSend(token: string, body: { grantId: string; agent: strin
 export function executeSignedSend(token: string, action: Record<string, string>, signature: string) {
   return postJson<{ actionHash: string; txHash: string; duplicate: boolean }>("/v1/vault/execute-send", { action, signature }, token);
 }
+
+export type AgentActionFields = {
+  grantId: string;
+  agent: string;
+  actionClass: number;
+  token: string;
+  recipient: string;
+  amount: string;
+  tokenOut: string;
+  amountOutMin: string;
+  quoteHash: string;
+  destDomain: number;
+  nonce: string;
+  deadline: string;
+  policyVersion: string;
+};
+
+export type AgentTaskResult = {
+  status: string;
+  label: string;
+  vault?: string;
+  action: AgentActionFields;
+  txHash?: string;
+  actionHash?: string;
+  verifyUrl?: string;
+  explorer?: string;
+  quote?: { amountIn: string; amountOut: string; amountOutMin: string; venue: string };
+};
+
+export function fetchAgentStatus() {
+  return getJson<{ ready: boolean; vault: string; reason: string }>("/v1/agent/status");
+}
+
+export function previewAgentSend(recipient: string, amount: string) {
+  return postJson<AgentTaskResult>("/v1/agent/send", { recipient, amount });
+}
+
+export function confirmAgentSend(token: string, recipient: string, amount: string, watchRevert = false) {
+  return postJson<AgentTaskResult>("/v1/agent/send", { recipient, amount, confirm: watchRevert ? "revert" : true }, token);
+}
+
+export function previewAgentSwap(amount: string) {
+  return postJson<AgentTaskResult>("/v1/agent/swap", { amount });
+}
+
+export function confirmAgentSwap(token: string, amount: string) {
+  return postJson<AgentTaskResult>("/v1/agent/swap", { amount, confirm: true }, token);
+}

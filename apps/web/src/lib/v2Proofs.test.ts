@@ -22,8 +22,8 @@ test("V2 contract addresses are exact", () => {
 
 test("swap proof carries the real on-chain execution", () => {
   assert.match(V2_SWAP_PROOF.txHash, HASH);
-  assert.equal(V2_SWAP_PROOF.txHash, "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c");
-  assert.equal(V2_SWAP_PROOF.block, "25808007");
+  assert.equal(V2_SWAP_PROOF.txHash, "0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d");
+  assert.equal(V2_SWAP_PROOF.block, "25818567");
   assert.match(V2_SWAP_PROOF.amountOut, /4,463/);
   assert.ok(V2_SWAP_PROOF.labels.includes("agent-signed"));
   assert.ok(V2_SWAP_PROOF.labels.includes("executor-relayed"));

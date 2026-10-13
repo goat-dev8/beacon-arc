@@ -39,8 +39,8 @@ export const CAPABILITIES = {
       via: "agent-signed executeSwap on BeaconUsdcVaultV2",
       vault: V2_VAULT,
       proof: {
-        txHash: "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c",
-        block: "25808007",
+        txHash: "0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d",
+        block: "25818567",
         amountIn: "5000",
         amountOut: "4463",
         tokenOut: ARC_EURC,

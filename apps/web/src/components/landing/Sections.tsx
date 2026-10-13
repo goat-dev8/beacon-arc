@@ -255,9 +255,9 @@ export function LiveProofSection() {
     {
       label: "The real swap — the vault traded",
       detail: "0.005 USDC → 4463 EURC base units · agent-signed, executor-relayed (V2)",
-      hash: "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c",
+      hash: "0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d",
       receipt: null,
-      block: "25808007",
+      block: "25818567",
       to: "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe",
     },
   ];

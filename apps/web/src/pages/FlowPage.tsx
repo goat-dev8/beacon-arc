@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
-import { answerLiveFlow } from "@/lib/arcApi";
+import { parseUnits } from "viem";
+import {
+  answerLiveFlow,
+  confirmAgentSend,
+  confirmAgentSwap,
+  previewAgentSend,
+  previewAgentSwap,
+  requestSessionChallenge,
+  verifySession,
+  type AgentTaskResult,
+} from "@/lib/arcApi";
+import { signPersonalMessage } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { ChatColumn } from "@/components/flow/ChatColumn";
 import { HistoryRail } from "@/components/flow/HistoryRail";
@@ -49,6 +60,31 @@ export function FlowPage() {
   const [dismissedExecKey, setDismissedExecKey] = useState<string | null>(null);
   const [whyZeroGOpen, setWhyZeroGOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [flowSession, setFlowSession] = useState<string | null>(null);
+  const [pendingAsk, setPendingAsk] = useState<{ kind: "send" | "swap"; amount: string; recipient?: string; preview: AgentTaskResult } | null>(null);
+
+  function parseAsk(text: string) {
+    const send = text.match(/send\s+(\d+(?:\.\d{1,6})?)\s*usdc\s+to\s+(0x[a-fA-F0-9]{40})/i);
+    if (send) return { kind: "send" as const, amount: parseUnits(send[1], 6).toString(), recipient: send[2] };
+    const swap = text.match(/swap\s+(\d+(?:\.\d{1,6})?)\s*usdc/i);
+    if (swap) return { kind: "swap" as const, amount: parseUnits(swap[1], 6).toString() };
+    return null;
+  }
+
+  function fieldsText(preview: AgentTaskResult) {
+    const a = preview.action;
+    return [
+      preview.label,
+      `Agent ${a.agent}`,
+      `Recipient ${a.recipient}`,
+      `Amount ${a.amount} base units`,
+      `Nonce ${a.nonce}`,
+      `Deadline ${a.deadline}`,
+      `Policy version ${a.policyVersion}`,
+      preview.quote ? `Quote ${preview.quote.amountOut} out, floor ${preview.quote.amountOutMin} (${preview.quote.venue}).` : "",
+      "Reply confirm to broadcast this exact action. Anything else cancels it.",
+    ].filter(Boolean).join("\n");
+  }
 
   useEffect(() => {
     if (shouldShowGetStarted()) {
@@ -187,9 +223,64 @@ export function FlowPage() {
     await connect();
   }
 
+  async function ensureFlowSession() {
+    if (flowSession) return flowSession;
+    if (!wallet) throw new Error("Connect the vault owner wallet. The agent signs the spend after you sign in.");
+    const challenge = await requestSessionChallenge(wallet);
+    const signature = await signPersonalMessage(challenge.message);
+    const verified = await verifySession(wallet, signature);
+    setFlowSession(verified.token);
+    return verified.token;
+  }
+
+  function pushPair(userText: string, assistantText: string) {
+    setMessages((m) => [
+      ...m,
+      { id: crypto.randomUUID(), role: "user", text: userText, agentId },
+      { id: crypto.randomUUID(), role: "assistant", agentId, text: assistantText, displayModel: "Arc vault" },
+    ]);
+  }
+
   function send() {
     const text = input.trim();
     if (!text || chat.isPending || !ready) return;
+    const ask = parseAsk(text);
+    if (ask) {
+      setInput("");
+      setPendingAsk(null);
+      void (async () => {
+        try {
+          const preview = ask.kind === "send"
+            ? await previewAgentSend(ask.recipient!, ask.amount)
+            : await previewAgentSwap(ask.amount);
+          setPendingAsk({ ...ask, preview });
+          pushPair(text, fieldsText(preview));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "The policy refused this. Nothing was signed.";
+          pushPair(text, message);
+        }
+      })();
+      return;
+    }
+    if (/^confirm$/i.test(text) && pendingAsk) {
+      const current = pendingAsk;
+      setInput("");
+      setPendingAsk(null);
+      void (async () => {
+        try {
+          const token = await ensureFlowSession();
+          const done = current.kind === "send"
+            ? await confirmAgentSend(token, current.recipient!, current.amount)
+            : await confirmAgentSwap(token, current.amount);
+          if (!done.txHash) throw new Error("No transaction hash. Beacon will not show success.");
+          pushPair(text, `Submitted. Arc tx ${done.txHash}\nReceipt ${done.verifyUrl}\n${done.explorer}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "The task failed. Nothing was shown as success.";
+          pushPair(text, message);
+        }
+      })();
+      return;
+    }
     setInput("");
     chat.mutate(text);
   }

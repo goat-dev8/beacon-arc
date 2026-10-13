@@ -79,9 +79,8 @@ export function Hero() {
           transition={{ delay: 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="text-base leading-relaxed tracking-tight text-ink-muted sm:text-xl md:text-2xl">
-            Beacon is the USDC firewall for agents on Arc. You set who can be paid and how much.
-            The agent signs the payment. The executor submits it and cannot change the recipient
-            or the amount.
+            Beacon is the USDC firewall for agents on Arc. Setup once — you set the limits.
+            The agent spends inside them, and every spend leaves a receipt you can verify.
           </p>
           <div className="mt-6 md:hidden">
             <FacetCtaPair

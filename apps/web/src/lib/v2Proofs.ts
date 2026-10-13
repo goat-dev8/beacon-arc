@@ -22,8 +22,8 @@ export const V2_SWAP_PROOF = {
   detail: "0.005 USDC → 4,463 EURC base units · Uniswap V3 USDC/EURC 0.05% pool",
   amountIn: "5,000 base units (0.005 USDC)",
   amountOut: "4,463 base units (0.004463 EURC)",
-  txHash: "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c",
-  block: "25808007",
+  txHash: "0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d",
+  block: "25818567",
   labels: ["agent-signed", "executor-relayed", "output returned to the vault", "1% slippage guard"],
 } as const;
 

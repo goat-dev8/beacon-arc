@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { createServer } from "./server.mjs";
-import { publicClient, relayExecute } from "./chain.mjs";
+import { privateKeyToAccount } from "viem/accounts";
+import { publicClient, relayExecute, relayV2 } from "./chain.mjs";
+import { ACTION_TYPES_V2, domainV2 } from "./eip712.mjs";
+import { V2_VAULT } from "./constants.mjs";
 import { memoryStore } from "./store.mjs";
 import { pgStore } from "./pgstore.mjs";
 
@@ -22,12 +25,27 @@ if (process.env.DATABASE_URL) {
   }
 }
 
+const executorKey = key.startsWith("0x") || key === "" ? key : `0x${key}`;
+const agentRaw = process.env.AGENT_PRIVATE_KEY || "";
+const agentKey = agentRaw === "" ? "" : agentRaw.startsWith("0x") ? agentRaw : `0x${agentRaw}`;
+const agentAccount = agentKey ? privateKeyToAccount(agentKey) : null;
+
 const app = createServer({
   client: publicClient(rpc),
   store,
-  broadcast: key ? relayExecute(rpc, key.startsWith("0x") ? key : `0x${key}`) : async () => {
+  broadcast: executorKey ? relayExecute(rpc, executorKey) : async () => {
     throw new Error("executor key missing");
   },
+  broadcastV2: executorKey ? relayV2(rpc, executorKey) : null,
+  agentAddress: agentAccount?.address ?? null,
+  signAgentAction: agentAccount
+    ? (message) => agentAccount.signTypedData({
+        domain: domainV2(V2_VAULT),
+        types: ACTION_TYPES_V2,
+        primaryType: "Action",
+        message,
+      })
+    : null,
 });
 
 const port = Number(process.env.PORT || 8787);

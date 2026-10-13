@@ -11,7 +11,7 @@
     "apps/web"
   ],
   "scripts": {
-    "test": "node --test packages/shared/src/units.test.ts scripts/guard-bans.test.mjs apps/web/src/lib/refusedPaths.test.ts apps/web/src/lib/v2Proofs.test.ts apps/web/src/components/ui/globalUx.test.ts apps/api/src/eip712.test.mjs apps/api/src/preflight.test.mjs apps/api/src/server.test.mjs apps/api/src/live.test.mjs apps/api/src/production.test.mjs",
+    "test": "node --test packages/shared/src/units.test.ts scripts/guard-bans.test.mjs apps/web/src/lib/refusedPaths.test.ts apps/web/src/lib/v2Proofs.test.ts apps/web/src/components/ui/globalUx.test.ts apps/api/src/eip712.test.mjs apps/api/src/agentTask.test.mjs apps/api/src/preflight.test.mjs apps/api/src/server.test.mjs apps/api/src/live.test.mjs apps/api/src/production.test.mjs",
     "e2e": "playwright test",
     "guard": "node scripts/guard-bans.mjs",
     "start": "node apps/api/src/index.mjs"

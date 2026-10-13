@@ -14,6 +14,7 @@ import {
   verifySession,
 } from "@/lib/arcApi";
 import { useProductWallet } from "@/lib/productWallet";
+import { AgentTaskPanel } from "@/components/AgentTaskPanel";
 import { ReadOnlySwapCard } from "@/components/ReadOnlySwapCard";
 import { V2LiveSection } from "@/components/V2LiveSection";
 import { ensureArcNetwork, publicClient, shortAddress, signPersonalMessage, walletClient, writeArcContract } from "@/lib/wallet";
@@ -335,6 +336,22 @@ export function VaultJourneyPage() {
   );
   const grantReady = Boolean(registeredAgent && registeredAgent !== "0x0000000000000000000000000000000000000000" && grantQuery.data?.active);
   const walletIsAgent = Boolean(wallet && grantReady && wallet.toLowerCase() === registeredAgent!.toLowerCase());
+  const role: "owner" | "agent" | "visitor" = !wallet
+    ? "visitor"
+    : vault && wallet.toLowerCase() === vault.owner.toLowerCase()
+      ? "owner"
+      : walletIsAgent
+        ? "agent"
+        : "visitor";
+  async function ensureSession() {
+    if (session) return session;
+    if (!wallet) throw new Error("Connect the vault owner wallet first.");
+    const challenge = await requestSessionChallenge(wallet);
+    const signature = await signPersonalMessage(challenge.message);
+    const verified = await verifySession(wallet, signature);
+    setSession(verified.token);
+    return verified.token;
+  }
   const stepDone: boolean[] = [
     Boolean(vault),
     Boolean(vault && BigInt(vault.usdcBalance) > 0n),
@@ -411,9 +428,13 @@ export function VaultJourneyPage() {
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">Arc · chain {NETWORK.chainId}</p>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Your USDC vault</h1>
       <p className="mt-2 max-w-2xl text-sm text-[var(--p-muted)]">
-        One vault per owner. You set the policy. An agent signs the exact send. The executor only relays that signature.
-        Eight steps, in order — each one unlocks the next.
+        Setup once — you set the limits. Agent spends — within those limits, every spend is signed. You verify — every spend has an on-chain receipt.
       </p>
+      <ol className="mt-4 grid gap-2 text-sm md:grid-cols-3">
+        <li className="rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3"><span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--p-accent-text)]">1 · Setup once</span><p className="mt-1 text-[var(--p-muted)]">You choose who can be paid and how much.</p></li>
+        <li className="rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3"><span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--p-accent-text)]">2 · Agent spends</span><p className="mt-1 text-[var(--p-muted)]">The granted agent signs the exact payment. You do not.</p></li>
+        <li className="rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3"><span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--p-accent-text)]">3 · You verify</span><p className="mt-1 text-[var(--p-muted)]">Each spend leaves a receipt you can open without a wallet.</p></li>
+      </ol>
 
       <StepRail states={stepStates} />
 
@@ -441,7 +462,14 @@ export function VaultJourneyPage() {
           </p>
         )}
         <p className="mt-3 text-sm text-[var(--p-muted)]">{note}</p>
+        <p className="mt-2 text-sm text-[var(--p-muted)]">
+          {role === "owner" && "You are the owner. Setup is yours. Sending is the agent's job — task the agent below."}
+          {role === "agent" && "You are the granted agent. You can sign a send. You cannot change the owner's limits."}
+          {role === "visitor" && "This wallet is neither the owner nor the granted agent. You can read the receipts. Connect the owner to set limits, or the agent to sign."}
+        </p>
       </section>
+
+      <AgentTaskPanel role={role} session={session} ensureSession={ensureSession} />
 
       <section className="mt-4" aria-label="Read-only swap quote">
         <ReadOnlySwapCard
@@ -719,6 +747,16 @@ export function VaultJourneyPage() {
           <Field label="Send amount, USDC"><input className={inputClass} value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} /></Field>
           <Field label="Recipient"><input className={inputClass} value={recipient} onChange={(e) => setRecipient(e.target.value)} /></Field>
         </div>
+        {role === "owner" && (
+          <p className="mt-2 text-sm text-[var(--p-muted)]">
+            Only the agent {registeredAgent ? shortAddress(registeredAgent) : "on the grant"} can sign. Task the agent above, or connect the agent wallet.
+          </p>
+        )}
+        {role === "visitor" && wallet && (
+          <p className="mt-2 text-sm text-[var(--p-muted)]">
+            This wallet cannot sign a send. Connect the granted agent, or have the owner task the agent above.
+          </p>
+        )}
         {recipient && !isHexAddress(recipient) && (
           <p className="mt-2 font-mono text-[11px] text-[var(--p-warn)]">
             Enter a valid 0x recipient address to enable signing.

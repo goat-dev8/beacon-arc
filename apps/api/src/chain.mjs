@@ -345,6 +345,67 @@ export function relayExecute(rpcUrl, privateKey) {
   };
 }
 
+const v2Action = [
+  { name: "grantId", type: "uint256" },
+  { name: "agent", type: "address" },
+  { name: "actionClass", type: "uint8" },
+  { name: "token", type: "address" },
+  { name: "recipient", type: "address" },
+  { name: "amount", type: "uint256" },
+  { name: "tokenOut", type: "address" },
+  { name: "amountOutMin", type: "uint256" },
+  { name: "quoteHash", type: "bytes32" },
+  { name: "destDomain", type: "uint32" },
+  { name: "nonce", type: "uint256" },
+  { name: "deadline", type: "uint256" },
+  { name: "policyVersion", type: "uint256" },
+];
+
+const v2ExecAbi = [
+  { type: "function", name: "executeSend", stateMutability: "nonpayable", inputs: [
+    { name: "action", type: "tuple", components: v2Action },
+    { name: "signature", type: "bytes" },
+  ], outputs: [] },
+  { type: "function", name: "executeSwap", stateMutability: "nonpayable", inputs: [
+    { name: "action", type: "tuple", components: v2Action },
+    { name: "signature", type: "bytes" },
+  ], outputs: [] },
+];
+
+function tupleV2(action) {
+  return {
+    grantId: BigInt(action.grantId),
+    agent: action.agent,
+    actionClass: Number(action.actionClass),
+    token: action.token,
+    recipient: action.recipient,
+    amount: BigInt(action.amount),
+    tokenOut: action.tokenOut,
+    amountOutMin: BigInt(action.amountOutMin),
+    quoteHash: action.quoteHash,
+    destDomain: Number(action.destDomain ?? 0),
+    nonce: BigInt(action.nonce),
+    deadline: BigInt(action.deadline),
+    policyVersion: BigInt(action.policyVersion),
+  };
+}
+
+/** Relay a V2 executeSend or executeSwap. The executor key cannot change the signed fields. */
+export function relayV2(rpcUrl, privateKey) {
+  const account = privateKeyToAccount(privateKey);
+  const wallet = createWalletClient({ account, chain: arc, transport: http(rpcUrl) });
+  return async (vault, functionName, action, signature, gas) => {
+    const hash = await wallet.sendTransaction({
+      to: vault,
+      data: encodeFunctionData({ abi: v2ExecAbi, functionName, args: [tupleV2(action), signature] }),
+      gas,
+      maxFeePerGas: 24_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000n,
+    });
+    return hash;
+  };
+}
+
 export async function readDecimals(client) {
   return client.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: "decimals" });
 }

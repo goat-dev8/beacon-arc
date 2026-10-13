@@ -1,7 +1,9 @@
 import Fastify from "fastify";
 import { isAddress, verifyMessage } from "viem";
 import { CAPABILITIES, CHAIN_ID, FACTORY } from "./constants.mjs";
-import { actionHash, recoverAgent, sendTypedData } from "./eip712.mjs";
+import { actionHash, actionHashV2, recoverAgent, sendTypedData } from "./eip712.mjs";
+import { checkRevertDemo, checkSend, checkSwap, quoteHashOf, rateAllow, slippageFloor } from "./agentTask.mjs";
+import { loadRecipient, loadTokenOut, loadV2 } from "./agentChain.mjs";
 import { preflightSend } from "./preflight.mjs";
 import { factoryHasCode, quoteV2, quoteV3, readChainId, readReceipt, readRecipient, readRecordedEvents, readVault, verifyQuoterPinned } from "./chain.mjs";
 import { V3_USDC_EURC_500, V3_FEE, V3_QUOTER, V3_ROUTER02 } from "./constants.mjs";
@@ -64,8 +66,8 @@ export function createServer(deps) {
     },
     proofs: {
       swap: {
-        txHash: "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c",
-        block: "25808007",
+        txHash: "0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d",
+        block: "25818567",
         amountIn: "5000",
         amountOut: "4463",
         detail: "0.005 USDC -> 4,463 EURC base units, agent-signed + executor-relayed",
@@ -291,7 +293,194 @@ export function createServer(deps) {
 
   app.post("/mcp", async (req, reply) => handleMcp(deps, readers, req, reply));
 
+  const agentHits = new Map();
+  app.get("/v1/agent/status", async () => ({
+    ready: Boolean(deps.signAgentAction && deps.broadcastV2),
+    vault: V2_VAULT,
+    reason: deps.signAgentAction
+      ? "The server holds the granted agent key. Only the vault owner can task it. The owner key is not on this server."
+      : "The agent key is not configured. The task console is hidden.",
+  }));
+
+  app.post("/v1/agent/send", async (req, reply) => agentSend(deps, agentHits, req, reply));
+  app.post("/v1/agent/swap", async (req, reply) => agentSwap(deps, agentHits, req, reply));
+
   return app;
+}
+
+function clientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim();
+  return forwarded || req.ip || "local";
+}
+
+function publicAction(action) {
+  return {
+    grantId: action.grantId.toString(),
+    agent: action.agent,
+    actionClass: action.actionClass,
+    token: action.token,
+    recipient: action.recipient,
+    amount: action.amount.toString(),
+    tokenOut: action.tokenOut,
+    amountOutMin: action.amountOutMin.toString(),
+    quoteHash: action.quoteHash,
+    destDomain: action.destDomain,
+    nonce: action.nonce.toString(),
+    deadline: action.deadline.toString(),
+    policyVersion: action.policyVersion.toString(),
+  };
+}
+
+async function ownerSession(deps, req, snapshot, reply) {
+  const owner = await sessionOwner(deps, req);
+  if (!owner) {
+    reply.code(401).send({ error: { code: "session", message: "Sign in as the vault owner. This login does not move USDC. The agent signs the spend." } });
+    return null;
+  }
+  if (owner.toLowerCase() !== snapshot.owner.toLowerCase()) {
+    reply.code(403).send({ error: { code: "not_owner", message: "Only the vault owner can task the agent." } });
+    return null;
+  }
+  return owner;
+}
+
+function agentConfigured(deps, reply) {
+  if (deps.signAgentAction && deps.broadcastV2) return true;
+  reply.code(503).send({
+    error: { code: "agent_key_missing", message: "The agent key is not configured on this server. The task console cannot sign." },
+  });
+  return false;
+}
+
+async function agentSend(deps, hits, req, reply) {
+  const now = deps.now ? deps.now() : Math.floor(Date.now() / 1000);
+  const snapshot = await (deps.loadV2 ?? loadV2)(deps.client);
+  const recipient = String(req.body?.recipient ?? "");
+  const flags = isAddress(recipient)
+    ? await (deps.loadRecipient ?? loadRecipient)(deps.client, snapshot.vault, recipient)
+    : { allowed: false, blocked: false };
+  const watchRevert = req.body?.confirm === "revert";
+  const gate = watchRevert
+    ? checkRevertDemo({ amount: req.body?.amount, maxPerTx: snapshot.maxPerTx, recipient, allowed: flags.allowed })
+    : checkSend({
+        amount: req.body?.amount,
+        recipient,
+        paused: snapshot.paused,
+        allowed: flags.allowed,
+        blocked: flags.blocked,
+        grant: snapshot.grant,
+        maxPerTx: snapshot.maxPerTx,
+        windowLimit: snapshot.windowLimit,
+        windowSpent: snapshot.windowSpent,
+        now,
+      });
+  if (!gate.ok) return reply.code(400).send({ error: { code: gate.code, message: gate.message } });
+  const action = {
+    grantId: 1n,
+    agent: snapshot.grant.agent,
+    actionClass: 1,
+    token: snapshot.usdc,
+    recipient: gate.recipient,
+    amount: gate.amount,
+    tokenOut: ZERO,
+    amountOutMin: 0n,
+    quoteHash: `0x${"0".repeat(64)}`,
+    destDomain: 0,
+    nonce: snapshot.nonce,
+    deadline: BigInt(now + 900),
+    policyVersion: snapshot.policyVersion,
+  };
+  if (req.body?.confirm !== true && req.body?.confirm !== "revert") {
+    return {
+      status: "preview",
+      label: watchRevert ? "this call is built to revert OverCap — no USDC moves" : "real transaction — dust amount",
+      vault: snapshot.vault,
+      action: publicAction(action),
+    };
+  }
+  if (!agentConfigured(deps, reply)) return;
+  if (!(await ownerSession(deps, req, snapshot, reply))) return;
+  if (!rateAllow(hits, `send:${clientIp(req)}`, 8, 10 * 60 * 1000, Date.now())) {
+    return reply.code(429).send({ error: { code: "rate", message: "Too many agent tasks from this address. Wait and retry." } });
+  }
+  if (deps.agentAddress && deps.agentAddress.toLowerCase() !== snapshot.grant.agent.toLowerCase()) {
+    return reply.code(503).send({ error: { code: "agent_mismatch", message: "The server agent is not the granted agent. Nothing was signed." } });
+  }
+  const signature = await deps.signAgentAction(action);
+  const txHash = await deps.broadcastV2(snapshot.vault, "executeSend", action, signature, watchRevert ? 120000n : undefined);
+  const hash = actionHashV2(snapshot.vault, action);
+  console.log(JSON.stringify({ event: watchRevert ? "agent_over_cap" : "agent_send", amount: action.amount.toString(), txHash }));
+  return {
+    status: watchRevert ? "reverted_broadcast" : "submitted",
+    label: "real transaction — dust amount",
+    txHash,
+    actionHash: hash,
+    verifyUrl: `/verify/${hash}`,
+    explorer: `https://explorer.arc.io/tx/${txHash}`,
+    action: publicAction(action),
+  };
+}
+
+async function agentSwap(deps, hits, req, reply) {
+  const now = deps.now ? deps.now() : Math.floor(Date.now() / 1000);
+  const snapshot = await (deps.loadV2 ?? loadV2)(deps.client);
+  const tokenOutAllowed = await (deps.loadTokenOut ?? loadTokenOut)(deps.client, snapshot.vault, snapshot.eurc);
+  const gate = checkSwap({
+    amount: req.body?.amount,
+    paused: snapshot.paused,
+    grant: snapshot.grant,
+    maxPerTx: snapshot.maxPerTx,
+    windowLimit: snapshot.windowLimit,
+    windowSpent: snapshot.windowSpent,
+    tokenOutAllowed,
+    now,
+  });
+  if (!gate.ok) return reply.code(400).send({ error: { code: gate.code, message: gate.message } });
+  let quote;
+  try {
+    quote = await (deps.quoteSwap ?? quoteV3)(deps.client, gate.amount.toString());
+  } catch (error) {
+    return reply.code(503).send({ error: { code: "quote", message: `No v3 quote: ${error.message}` } });
+  }
+  const floor = slippageFloor(quote.amountOut);
+  if (floor === 0n) return reply.code(400).send({ error: { code: "quote", message: "The quoter returned no output. Nothing was signed." } });
+  const quoteHash = quoteHashOf({ venue: "uniswap-v3", amountIn: gate.amount.toString(), amountOut: String(quote.amountOut), fee: quote.fee ?? 500 });
+  const action = {
+    grantId: 1n,
+    agent: snapshot.grant.agent,
+    actionClass: 2,
+    token: snapshot.usdc,
+    recipient: snapshot.vault,
+    amount: gate.amount,
+    tokenOut: snapshot.eurc,
+    amountOutMin: floor,
+    quoteHash,
+    destDomain: 0,
+    nonce: snapshot.nonce,
+    deadline: BigInt(now + 900),
+    policyVersion: snapshot.policyVersion,
+  };
+  const preview = {
+    status: "preview",
+    label: "real transaction — dust amount",
+    vault: snapshot.vault,
+    quote: { amountIn: gate.amount.toString(), amountOut: String(quote.amountOut), amountOutMin: floor.toString(), venue: "uniswap-v3" },
+    action: publicAction(action),
+  };
+  if (req.body?.confirm !== true) return preview;
+  if (!agentConfigured(deps, reply)) return;
+  if (!(await ownerSession(deps, req, snapshot, reply))) return;
+  if (!rateAllow(hits, `swap:${clientIp(req)}`, 4, 10 * 60 * 1000, Date.now())) {
+    return reply.code(429).send({ error: { code: "rate", message: "Too many swap tasks from this address. Wait and retry." } });
+  }
+  if (deps.agentAddress && deps.agentAddress.toLowerCase() !== snapshot.grant.agent.toLowerCase()) {
+    return reply.code(503).send({ error: { code: "agent_mismatch", message: "The server agent is not the granted agent. Nothing was signed." } });
+  }
+  const signature = await deps.signAgentAction(action);
+  const txHash = await deps.broadcastV2(snapshot.vault, "executeSwap", action, signature);
+  const hash = actionHashV2(snapshot.vault, action);
+  console.log(JSON.stringify({ event: "agent_swap", amount: action.amount.toString(), txHash }));
+  return { ...preview, status: "submitted", txHash, actionHash: hash, verifyUrl: `/verify/${hash}`, explorer: `https://explorer.arc.io/tx/${txHash}` };
 }
 
 async function sessionOwner(deps, req) {

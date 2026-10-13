@@ -418,3 +418,13 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - Bundle: /home/hatch/workspace/beacon-rescue-p1.bundle (6.9M, sha256 be51366f2ec0bc5290c4380dfb19879deadb7a96789684b39612fcb37c52b615). Verified by clone.
 - Cursor prompt: ~/workspace/your_files/beacon-cursor-prompt.md (merge first, real-tx tests, local gates, user's Chrome for browser tests, push/deploy/verify).
 - Local dev servers (API :8787, web :5173) left running for inspection; stop with: pkill -f "apps/api/src/index.mjs"; pkill -f "vite --port 5173".
+
+## 2026-10-14 — Role-aware vault and a real agent task path
+
+- The vault page now names the connected wallet as owner, agent, or visitor. An owner no longer gets a silent disabled Send. The reason is on the page: only the granted agent signs, and the owner tasks that agent.
+- `POST /v1/agent/send` and `POST /v1/agent/swap` preview the exact EIP-712 fields, then sign with the server-held agent key and relay through the executor. The owner key is not read. Dust caps are 1000 base units for a send and 5000 for a swap. An over-cap amount is refused before a signature. A separate confirm broadcasts a dust over-cap so the receipt is a revert.
+- Flow accepts "send 0.001 USDC to 0x…" and "swap 0.005 USDC", shows the exact action, and broadcasts only after the user replies confirm.
+- The swap proof cited by the UI is `0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d` (block 25818567), which calls the live V2 vault. The earlier `0xf4c87b61…` called the superseded vault `0xc3d405eb…`.
+- Dust txs this session, all on V2 `0x8901AAa…`: send `0xf290d9ed0d312dfb8f6edc913be0e99bb0f7bbdce4a21cd7b300ae6cb15ff309` (1000 base units), swap `0xab5c6933…` (5000 USDC to 4463 EURC), over-cap revert `0x9c03853ae85d2db96f3517343101eff200351a3a1dc339bf1e43e517b7c308a7`.
+- Gates after the change: npm test 68/68, tsc clean, vite build ok, guard clean, forge 42/42. Contracts were not changed.
+- The Rabby warning is unchanged. A Blockaid report was filed earlier (HTTP 200 means received). A custom domain is the durable fix.

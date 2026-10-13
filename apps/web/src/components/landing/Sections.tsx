@@ -173,6 +173,239 @@ export function ContractsSection() {
   );
 }
 
+export function LiveProofSection() {
+  const reduce = useReducedMotion();
+
+  const contracts = [
+    {
+      name: "BeaconUsdcVault",
+      role: "The firewall — holds USDC, calls transfer itself",
+      address: CONTRACTS.vault,
+    },
+    {
+      name: "BeaconVaultFactory",
+      role: "One vault per owner — create reverts twice",
+      address: CONTRACTS.vaultFactory,
+    },
+    {
+      name: "BeaconReceiptRegistry",
+      role: "Every execution writes an on-chain receipt",
+      address: CONTRACTS.receiptRegistry,
+    },
+  ];
+
+  const txs = [
+    {
+      kind: "allow" as const,
+      label: "The allow path — it works",
+      detail: "0.01 USDC · 10,000 base units · status 0x1",
+      hash: "0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab",
+      receipt: "0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a" as string | null,
+    },
+    {
+      kind: "allow" as const,
+      label: "The real payment — a third party",
+      detail: "0.01 USDC · agent-signed, executor-relayed · status 0x1",
+      hash: "0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3",
+      receipt: "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30" as string | null,
+    },
+    {
+      kind: "deny" as const,
+      label: "The money shot — the vault said no",
+      detail: "OverCap revert · status 0x0 · no funds moved",
+      hash: "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83",
+      receipt: null,
+    },
+  ];
+
+  const receiptId =
+    "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30";
+
+  return (
+    <section id="live-proof" className="relative border-b border-line bg-dusk py-24 text-paper md:py-32">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+      <div className="mx-auto max-w-6xl px-5 md:px-8">
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="text-center"
+        >
+          <span className="inline-flex items-center gap-2 border border-signal/40 bg-signal/10 px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-signal">
+            <span className="inline-block h-2 w-2 rounded-full bg-signal" />
+            Live on Arc mainnet · chain 5042
+          </span>
+          <h2 className="mx-auto mt-6 max-w-3xl font-display text-4xl font-extrabold tracking-tight md:text-6xl">
+            Proof, not promises.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-white/65">
+            Every claim below opens on-chain. No wallet, no signup, no trust required.
+          </p>
+        </motion.div>
+
+        <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-0 border border-white/15 sm:grid-cols-3">
+          {[
+            ["0.02 USDC", "moved through policy"],
+            ["2 executions", "recorded in the registry"],
+            ["1 refusal", "reverted on-chain"],
+          ].map(([big, small], i) => (
+            <div
+              key={big}
+              className={`px-6 py-6 text-center ${i < 2 ? "border-b border-white/15 sm:border-b-0 sm:border-r" : ""}`}
+            >
+              <p className="font-display text-2xl font-extrabold tracking-tight text-signal md:text-3xl">
+                {big}
+              </p>
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.12em] text-white/50">
+                {small}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mx-auto mt-12 grid gap-4 lg:grid-cols-3">
+          {contracts.map((c, i) => (
+            <motion.div
+              key={c.address}
+              initial={reduce ? false : { opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.07, duration: 0.45 }}
+              className="border border-white/15 bg-dusk-2 p-6"
+            >
+              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-signal">
+                {c.name}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-white/60">{c.role}</p>
+              <p className="mt-4 break-all font-mono text-xs leading-relaxed text-paper/85">
+                {c.address}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+                <a
+                  href={`https://repo.sourcify.dev/5042/${c.address}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-xs text-signal underline decoration-signal/40 underline-offset-4 hover:decoration-signal"
+                >
+                  Verified source ↗
+                </a>
+                <a
+                  href={`${NETWORK.explorer}/address/${c.address}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-xs text-white/55 underline decoration-white/25 underline-offset-4 hover:text-paper"
+                >
+                  Explorer ↗
+                </a>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="mx-auto mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {txs.map((t, i) => (
+            <motion.div
+              key={t.hash}
+              initial={reduce ? false : { opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.07, duration: 0.45 }}
+              className={`group flex flex-col border p-6 transition-colors ${
+                t.kind === "deny"
+                  ? "border-danger/30 bg-dusk-2 hover:border-danger/60"
+                  : "border-white/15 bg-dusk-2 hover:border-signal/50"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span
+                  className={`inline-flex items-center gap-2 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] ${
+                    t.kind === "allow"
+                      ? "bg-signal/15 text-signal"
+                      : "bg-danger/15 text-danger"
+                  }`}
+                >
+                  <span aria-hidden="true">{t.kind === "allow" ? "●" : "✕"}</span>{" "}
+                  {t.kind === "allow" ? "status 0x1" : "status 0x0"}
+                </span>
+                <a
+                  href={`${NETWORK.explorer}/tx/${t.hash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Open ${t.label} on the Arc explorer`}
+                  className="font-mono text-xs text-white/45 transition-colors group-hover:text-signal"
+                >
+                  ↗
+                </a>
+              </div>
+              <p className="mt-4 font-display text-xl font-bold tracking-tight">{t.label}</p>
+              <p className="mt-1 font-mono text-xs text-white/55">{t.detail}</p>
+              <p className="mt-3 break-all font-mono text-[11px] leading-relaxed text-white/40">
+                {t.hash}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-4">
+                <a
+                  href={`${NETWORK.explorer}/tx/${t.hash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-xs text-white/55 underline decoration-white/25 underline-offset-4 hover:text-paper"
+                >
+                  Explorer ↗
+                </a>
+                {t.receipt && (
+                  <a
+                    href={`/verify/${t.receipt}`}
+                    className="font-mono text-xs text-signal underline decoration-signal/40 underline-offset-4 hover:decoration-signal"
+                  >
+                    Receipt ↗
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.a
+          href={`/verify/${receiptId}`}
+          initial={reduce ? false : { opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="group mx-auto mt-4 flex max-w-6xl flex-col gap-2 border border-signal/40 bg-signal/10 p-6 sm:flex-row sm:items-center sm:justify-between md:p-8"
+        >
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-signal">
+              The receipt — readable without a wallet
+            </p>
+            <p className="mt-2 font-display text-2xl font-extrabold tracking-tight md:text-3xl">
+              0.01 USDC · 10,000 base units
+            </p>
+            <p className="mt-1 font-mono text-xs text-white/55">
+              Registry proof + Arc explorer. On-chain is authoritative.
+            </p>
+          </div>
+          <span className="shrink-0 bg-signal px-6 py-3 font-mono text-sm font-bold text-dusk transition-transform group-hover:-translate-y-0.5">
+            Open receipt →
+          </span>
+        </motion.a>
+
+        <p className="mx-auto mt-10 max-w-2xl text-center font-mono text-[11px] leading-relaxed text-white/40">
+          Dust-scale proof of the mechanism — the honest baseline, not a volume claim.
+          0.02 USDC moved · 2 executions · 1 on-chain refusal.{" "}
+          <a
+            href={NETWORK.explorer}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-white/25 underline-offset-4 hover:text-paper"
+          >
+            Browse all activity on the Arc explorer ↗
+          </a>
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export function FinalCta() {
   return (
     <section className="bg-dusk py-28 text-paper md:py-36">

@@ -98,12 +98,13 @@ test("prepare rejects an over-cap amount before any broadcast", async () => {
   await app.close();
 });
 
-test("swap quote is a router read and is not executable", async () => {
+test("swap quote is a pinned v3 quoter read and is not executable", async () => {
   const app = createServer({
     client: {},
     store: memoryStore(),
     readers: readers(),
-    quoteSwap: async () => ({ amountIn: "10000", amountOut: "8427" }),
+    verifyQuoter: async () => ({ ok: true, factory: "0xf0db7b58379503491d857dB50AC9ece64c653918", tickSpacing: 60, pool: "0x6fd5F2fb831940DcD61A98c5B3aCB7D8C6f3bFc1" }),
+    quoteSwap: async () => ({ amountIn: "10000", amountOut: "8781", pool: "0x6fd5F2fb831940DcD61A98c5B3aCB7D8C6f3bFc1", fee: 500 }),
     broadcast: async () => {
       throw new Error("quote must not broadcast");
     },
@@ -112,10 +113,110 @@ test("swap quote is a router read and is not executable", async () => {
   const body = JSON.parse(res.body);
   assert.equal(res.statusCode, 200);
   assert.equal(body.status, "quoted");
-  assert.equal(body.amountOut, "8427");
+  assert.equal(body.venue, "uniswap-v3");
+  assert.equal(body.amountOut, "8781");
+  assert.equal(body.pool, "0x6fd5F2fb831940DcD61A98c5B3aCB7D8C6f3bFc1");
+  assert.equal(body.fee, 500);
   assert.equal(body.executable, false);
+  assert.match(body.reason, /not a trade/);
   const empty = await app.inject({ method: "GET", url: "/v1/quote/swap?amount=0" });
   assert.equal(empty.statusCode, 400);
+  await app.close();
+});
+
+test("swap quote falls back to an indicative v2 read when v3 fails", async () => {
+  const app = createServer({
+    client: {},
+    store: memoryStore(),
+    readers: readers(),
+    verifyQuoter: async () => ({ ok: true }),
+    quoteSwap: async () => {
+      throw new Error("quoter reverted");
+    },
+    quoteSwapV2: async () => ({ amountIn: "10000", amountOut: "1460" }),
+    broadcast: async () => {
+      throw new Error("quote must not broadcast");
+    },
+  });
+  const res = await app.inject({ method: "GET", url: "/v1/quote/swap?amount=10000" });
+  const body = JSON.parse(res.body);
+  assert.equal(res.statusCode, 200);
+  assert.equal(body.status, "quoted");
+  assert.equal(body.venue, "uniswap-v2");
+  assert.equal(body.indicative, true);
+  assert.equal(body.amountOut, "1460");
+  assert.equal(body.executable, false);
+  assert.match(body.reason, /indicative/);
+  await app.close();
+});
+
+test("swap quote is refused when the squat guard fails", async () => {
+  const app = createServer({
+    client: {},
+    store: memoryStore(),
+    readers: readers(),
+    verifyQuoter: async () => ({ ok: false, reason: "router.factory() mismatch" }),
+    quoteSwap: async () => ({ amountIn: "10000", amountOut: "8781" }),
+    broadcast: async () => {
+      throw new Error("quote must not broadcast");
+    },
+  });
+  const res = await app.inject({ method: "GET", url: "/v1/quote/swap?amount=10000" });
+  const body = JSON.parse(res.body);
+  assert.equal(res.statusCode, 503);
+  assert.equal(body.status, "UNAVAILABLE");
+  assert.equal(body.executable, false);
+  assert.match(body.reason, /quoter not pinned/);
+  await app.close();
+});
+
+const receiptEvent = {
+  actionHash: "0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a",
+  vault: vaultState.vault,
+  agent: owner,
+  recipient: owner,
+  amount: "10000",
+  nonce: "0",
+  blockNumber: "24848449",
+  txHash: "0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab",
+};
+
+test("receipt export requires a session", async () => {
+  const { app } = await boot();
+  const res = await app.inject({ method: "GET", url: "/v1/receipts/export?format=csv" });
+  assert.equal(res.statusCode, 401);
+  await app.close();
+});
+
+test("receipt export returns a CSV of registry receipts", async () => {
+  const store = memoryStore();
+  await store.saveSession("session-token", owner, Date.now() + 60_000);
+  const app = createServer({
+    client: {},
+    store,
+    readers: readers(),
+    readRecordedEvents: async () => [receiptEvent],
+    broadcast: async () => "0x",
+  });
+  const res = await app.inject({
+    method: "GET",
+    url: "/v1/receipts/export?format=csv",
+    headers: { authorization: "Bearer session-token" },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers["content-type"], /text\/csv/);
+  const lines = res.body.trim().split("\n");
+  assert.equal(lines[0], "actionHash,vault,agent,recipient,amount,nonce,blockNumber,txHash");
+  assert.equal(lines.length, 2);
+  assert.match(lines[1], /0x429b11d6/);
+  assert.match(lines[1], /24848449/);
+  assert.match(lines[1], /0xa38fb4dc/);
+  const bad = await app.inject({
+    method: "GET",
+    url: "/v1/receipts/export?format=json",
+    headers: { authorization: "Bearer session-token" },
+  });
+  assert.equal(bad.statusCode, 400);
   await app.close();
 });
 
@@ -303,4 +404,31 @@ test("a mutated amount does not broadcast", async () => {
   assert.equal(calls.length, 0);
   await app.close();
   await app2.close();
+});
+
+test("grants rejects an invalid agent address", async () => {
+  const store = memoryStore();
+  await store.saveSession("session-token", owner, Date.now() + 60_000);
+  const app = createServer({ client: {}, store, readers: readers(), broadcast: async () => "0x" });
+  const res = await app.inject({
+    method: "POST",
+    url: "/v1/grants",
+    headers: { authorization: "Bearer session-token" },
+    payload: { agent: "not-an-address" },
+  });
+  assert.equal(res.statusCode, 400);
+  assert.equal(JSON.parse(res.body).error.code, "agent");
+  await app.close();
+});
+
+test("auth verify returns 401 on a malformed address instead of 500", async () => {
+  const { app } = await boot();
+  const res = await app.inject({
+    method: "POST",
+    url: "/v1/auth/verify",
+    payload: { address: "0xzzz", signature: "0x1234" },
+  });
+  assert.equal(res.statusCode, 401);
+  assert.equal(JSON.parse(res.body).error.code, "address");
+  await app.close();
 });

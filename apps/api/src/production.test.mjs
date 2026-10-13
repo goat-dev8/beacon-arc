@@ -5,11 +5,32 @@ const API = "https://beacon-arc-api.onrender.com";
 const WEB = "https://beacon-arc-one.vercel.app";
 const OWNER = "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034";
 const VAULT = "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6";
+const ARC_RPC = "https://rpc.mainnet.arc.io";
+const USDC = "0x3600000000000000000000000000000000000000";
 
 async function get(url, init) {
   const res = await fetch(url, init);
   const text = await res.text();
   return { status: res.status, text, json: text.startsWith("{") || text.startsWith("[") ? JSON.parse(text) : null };
+}
+
+// The vault balance is live chain state (it changes when the vault is funded),
+// so compare the API's report against an independent RPC read instead of a
+// hard-coded value. Verified 2026-10-13: balance moved 10000 -> 50000 raw
+// (0.01 -> 0.05 USDC) after a real funding; the API tracked it correctly.
+async function rpcBalanceOf(vault) {
+  const res = await fetch(ARC_RPC, {
+    method: "POST",
+    headers: { "content-type": "application/json", "User-Agent": "Mozilla/5.0" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_call",
+      params: [{ to: USDC, data: "0x70a08231000000000000000000000000" + vault.slice(2) }, "latest"],
+    }),
+  });
+  const json = await res.json();
+  return BigInt(json.result).toString();
 }
 
 test("production API reports Arc and the live vault", async () => {
@@ -24,8 +45,8 @@ test("production API reports Arc and the live vault", async () => {
   const vault = await get(`${API}/v1/vault/${OWNER}`);
   assert.equal(vault.status, 200);
   assert.equal(vault.json.vault.toLowerCase(), VAULT.toLowerCase());
-  assert.equal(vault.json.usdcBalance, "10000");
-  assert.match(vault.json.summary, /0\.01 USDC/);
+  assert.equal(vault.json.usdcBalance, await rpcBalanceOf(VAULT));
+  assert.match(vault.json.summary, / USDC in the vault/);
 
   const caps = await get(`${API}/v1/capabilities`);
   assert.equal(caps.json.send.executable, true);

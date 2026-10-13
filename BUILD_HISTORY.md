@@ -428,3 +428,14 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - Dust txs this session, all on V2 `0x8901AAa…`: send `0xf290d9ed0d312dfb8f6edc913be0e99bb0f7bbdce4a21cd7b300ae6cb15ff309` (1000 base units), swap `0xab5c6933…` (5000 USDC to 4463 EURC), over-cap revert `0x9c03853ae85d2db96f3517343101eff200351a3a1dc339bf1e43e517b7c308a7`.
 - Gates after the change: npm test 68/68, tsc clean, vite build ok, guard clean, forge 42/42. Contracts were not changed.
 - The Rabby warning is unchanged. A Blockaid report was filed earlier (HTTP 200 means received). A custom domain is the durable fix.
+
+## 2026-10-14 — Wallet warning research, p1 bundle check stopped
+
+- **Wallet warning:** the screenshot is Rabby. The red "Request from" triangle on `beacon-arc-one.vercel.app` and the "Review alert" button are Rabby's domain-trust signal. Rabby's own docs and public reports say the signal often hits new, low-popularity, and shared hosting domains such as `*.vercel.app`. Public MetaMask issues show the same false positive for other Vercel dApps. Routes that exist: report the exact domain to Rabby support (support@rabby.io or bd@rabby.io) with the explorer proof and the Sourcify links, and move to a dedicated custom domain. The PQTABS guide records a Blockaid report that returned 200 for MetaMask, and it says that report does not prove the alert is cleared. No code change was made. Nothing was signed, approved, dismissed, or clicked in the wallet.
+- **PQTABS reference:** `D:\route\arc\PQTABS\guide.md` and `HISTORY.md` lines 408 to 427. Same pattern: origin flagged, tx checked on the explorer, benign report filed, and the alert not verified as cleared.
+- **p1 bundle:** `beacon-rescue-p1.bundle` is 13044430 bytes, SHA-256 `F1639E184850E17EFE73B54DA84981164107DA9F45882CEAA2571FB535D15174`. The guide expects about 6.9 MB and SHA-256 `be51366f...`. Head `dd4a170ce65e514582c817b1cab4ea521b0e2298 refs/heads/rescue/p1` and `git bundle verify` pass. The file did not match the guide's checksum, so it was not fetched. The same size and hash mismatch pattern happened to the first rescue bundle.
+- **Not run:** gates (npm test, tsc, vite build, guard, forge test), the real-transaction dust tests, the browser judge walk, and the push or merge of rescue/p1. None of them ran because the bundle did not match.
+- **.env:** key names were listed. Values were not printed.
+- **Not signed.** The acceptance gate is not green.
+
+- **Blockaid report filed (user-approved, PQTABS method):** `POST https://report.blockaid.io/api/submitDappForm` for `https://beacon-arc-one.vercel.app`, wallet field `Rabby`, classification Benign, transaction `0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab` (verified send), email empty. Result: HTTP 200 `OK`. A 200 is receipt only. The Rabby alert was not retested and is not cleared; the PQTABS history records the same limit.

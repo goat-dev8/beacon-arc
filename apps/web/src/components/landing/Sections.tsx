@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   AcceptanceDiagram,
@@ -173,6 +174,47 @@ export function ContractsSection() {
   );
 }
 
+function truncateHash(h: string) {
+  return h.length > 16 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h;
+}
+
+/** Truncated hash with a copy button — full value stays on the explorer link. */
+function CopyHash({ value, tone = "dark" }: { value: string; tone?: "dark" | "light" }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <code
+        className={`min-w-0 truncate font-mono text-[11px] leading-relaxed ${
+          tone === "dark" ? "text-white/45" : "text-ink-faint"
+        }`}
+        title={value}
+      >
+        {truncateHash(value)}
+      </code>
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard
+            .writeText(value)
+            .then(() => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1600);
+            })
+            .catch(() => setCopied(false));
+        }}
+        aria-label={`Copy full transaction hash ${value}`}
+        className={`inline-flex h-7 shrink-0 items-center px-2 font-mono text-[11px] underline decoration-dotted underline-offset-4 transition-colors ${
+          tone === "dark"
+            ? "text-white/60 decoration-white/30 hover:text-paper"
+            : "text-ink-muted decoration-ink-faint hover:text-ink"
+        }`}
+      >
+        {copied ? "Copied ✓" : "Copy"}
+      </button>
+    </span>
+  );
+}
+
 export function LiveProofSection() {
   const reduce = useReducedMotion();
 
@@ -194,27 +236,29 @@ export function LiveProofSection() {
     },
   ];
 
-  const txs = [
+  const refusal = {
+    hash: "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83",
+    block: "24848550",
+    revert: "OverCap() · 0x342fa66d",
+  };
+
+  const sends = [
     {
-      kind: "allow" as const,
-      label: "The allow path — it works",
-      detail: "0.01 USDC · 10,000 base units · status 0x1",
-      hash: "0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab",
-      receipt: "0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a" as string | null,
-    },
-    {
-      kind: "allow" as const,
       label: "The real payment — a third party",
-      detail: "0.01 USDC · agent-signed, executor-relayed · status 0x1",
+      detail: "0.01 USDC · 10,000 base units · agent-signed, executor-relayed",
       hash: "0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3",
-      receipt: "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30" as string | null,
+      receipt:
+        "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30" as string | null,
+      block: "25790870",
+      to: "0xCb2E45A4c3703cd9C73DF09C8b945d5295Fa3Edd",
     },
     {
-      kind: "deny" as const,
-      label: "The money shot — the vault said no",
-      detail: "OverCap revert · status 0x0 · no funds moved",
-      hash: "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83",
+      label: "The real swap — the vault traded",
+      detail: "0.005 USDC → 4463 EURC base units · agent-signed, executor-relayed (V2)",
+      hash: "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c",
       receipt: null,
+      block: "25808007",
+      to: "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe",
     },
   ];
 
@@ -246,8 +290,8 @@ export function LiveProofSection() {
 
         <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-0 border border-white/15 sm:grid-cols-3">
           {[
-            ["0.02 USDC", "moved through policy"],
-            ["2 executions", "recorded in the registry"],
+            ["0.026 USDC", "moved through policy"],
+            ["4 executions", "recorded on-chain"],
             ["1 refusal", "reverted on-chain"],
           ].map(([big, small], i) => (
             <div
@@ -274,9 +318,14 @@ export function LiveProofSection() {
               transition={{ delay: i * 0.07, duration: 0.45 }}
               className="border border-white/15 bg-dusk-2 p-6"
             >
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-signal">
-                {c.name}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-signal">
+                  {c.name}
+                </p>
+                <span className="inline-flex items-center gap-1.5 border border-signal/40 bg-signal/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-signal">
+                  <span aria-hidden="true">✓</span> exact_match
+                </span>
+              </div>
               <p className="mt-2 text-sm leading-relaxed text-white/60">{c.role}</p>
               <p className="mt-4 break-all font-mono text-xs leading-relaxed text-paper/85">
                 {c.address}
@@ -303,30 +352,87 @@ export function LiveProofSection() {
           ))}
         </div>
 
-        <div className="mx-auto mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {txs.map((t, i) => (
+        {/* Featured refusal — the money shot */}
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="mx-auto mt-12 max-w-6xl border border-danger/40 bg-dusk-2"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-danger/25 px-6 py-4 md:px-8">
+            <span className="inline-flex items-center gap-2 bg-danger/15 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-danger">
+              <span aria-hidden="true">✕</span> Refused · status 0x0
+            </span>
+            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/40">
+              The money shot
+            </span>
+          </div>
+          <div className="grid gap-8 p-6 md:grid-cols-2 md:p-8">
+            <div>
+              <h3 className="font-display text-3xl font-extrabold tracking-tight text-paper md:text-4xl">
+                The vault said no.
+              </h3>
+              <p className="mt-3 max-w-md leading-relaxed text-white/65">
+                An over-cap send was attempted. The vault reverted on-chain instead of
+                trusting the agent — zero USDC moved, the nonce was not spent.
+              </p>
+              <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 font-mono text-xs">
+                <div>
+                  <dt className="uppercase tracking-[0.12em] text-white/40">Block</dt>
+                  <dd className="mt-1 text-paper">{refusal.block}</dd>
+                </div>
+                <div>
+                  <dt className="uppercase tracking-[0.12em] text-white/40">Revert</dt>
+                  <dd className="mt-1 text-danger">{refusal.revert}</dd>
+                </div>
+                <div>
+                  <dt className="uppercase tracking-[0.12em] text-white/40">USDC moved</dt>
+                  <dd className="mt-1 text-paper">0.000000</dd>
+                </div>
+                <div>
+                  <dt className="uppercase tracking-[0.12em] text-white/40">Nonce spent</dt>
+                  <dd className="mt-1 text-paper">none</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="flex flex-col justify-center gap-4 border-t border-white/10 pt-6 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-white/40">
+                  Transaction
+                </p>
+                <div className="mt-2">
+                  <CopyHash value={refusal.hash} />
+                </div>
+              </div>
+              <a
+                href={`${NETWORK.explorer}/tx/${refusal.hash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 w-fit items-center bg-danger px-6 font-mono text-sm font-bold text-dusk transition-transform hover:-translate-y-0.5"
+              >
+                See the revert on the explorer ↗
+              </a>
+              <p className="font-mono text-[11px] leading-relaxed text-white/40">
+                Open it: the explorer shows a failed transaction. That failure is the product.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="mx-auto mt-4 grid max-w-6xl gap-4 md:grid-cols-2">
+          {sends.map((t, i) => (
             <motion.div
               key={t.hash}
               initial={reduce ? false : { opacity: 0, y: 18 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.07, duration: 0.45 }}
-              className={`group flex flex-col border p-6 transition-colors ${
-                t.kind === "deny"
-                  ? "border-danger/30 bg-dusk-2 hover:border-danger/60"
-                  : "border-white/15 bg-dusk-2 hover:border-signal/50"
-              }`}
+              className="group flex flex-col border border-white/15 bg-dusk-2 p-6 transition-colors hover:border-signal/50"
             >
               <div className="flex items-center justify-between gap-3">
-                <span
-                  className={`inline-flex items-center gap-2 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] ${
-                    t.kind === "allow"
-                      ? "bg-signal/15 text-signal"
-                      : "bg-danger/15 text-danger"
-                  }`}
-                >
-                  <span aria-hidden="true">{t.kind === "allow" ? "●" : "✕"}</span>{" "}
-                  {t.kind === "allow" ? "status 0x1" : "status 0x0"}
+                <span className="inline-flex items-center gap-2 bg-signal/15 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-signal">
+                  <span aria-hidden="true">●</span> Executed · status 0x1
                 </span>
                 <a
                   href={`${NETWORK.explorer}/tx/${t.hash}`}
@@ -338,11 +444,25 @@ export function LiveProofSection() {
                   ↗
                 </a>
               </div>
-              <p className="mt-4 font-display text-xl font-bold tracking-tight">{t.label}</p>
-              <p className="mt-1 font-mono text-xs text-white/55">{t.detail}</p>
-              <p className="mt-3 break-all font-mono text-[11px] leading-relaxed text-white/40">
-                {t.hash}
+              <p className="mt-4 font-display text-xl font-bold tracking-tight text-paper">
+                {t.label}
               </p>
+              <p className="mt-1 font-mono text-xs text-white/55">{t.detail}</p>
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 font-mono text-[11px]">
+                <div>
+                  <dt className="uppercase tracking-[0.12em] text-white/40">Block</dt>
+                  <dd className="mt-1 text-paper/85">{t.block}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="uppercase tracking-[0.12em] text-white/40">To</dt>
+                  <dd className="mt-1 truncate text-paper/85" title={t.to}>
+                    {truncateHash(t.to)}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-3">
+                <CopyHash value={t.hash} />
+              </div>
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-4">
                 <a
                   href={`${NETWORK.explorer}/tx/${t.hash}`}
@@ -410,14 +530,18 @@ export function FinalCta() {
   return (
     <section className="bg-dusk py-28 text-paper md:py-36">
       <div className="mx-auto max-w-6xl px-5 text-center md:px-8">
+        <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-signal">
+          Try it — eight steps, on the live vault
+        </p>
         <h2 className="font-display text-3xl font-extrabold tracking-tight md:text-5xl">
-          Open Beacon Flow
+          Run the vault journey yourself.
         </h2>
         <p className="mx-auto mt-4 max-w-md text-white/65">
-          Set the cap. Allow the recipient. Sign the USDC action. Open the receipt on Arc.
+          Deposit. Grant the agent. Set the cap. Sign the USDC action. Watch the
+          receipt land on Arc — or watch the vault refuse.
         </p>
         <div className="mt-8 flex justify-center overflow-x-auto px-2">
-          <FacetCtaPair left="Get Started" right="Open Flow" leftTo="/start" rightTo="/flow" size="md" />
+          <FacetCtaPair left="Get Started" right="Open the vault" leftTo="/start" rightTo="/flow/vault" size="md" />
         </div>
       </div>
     </section>
@@ -427,9 +551,45 @@ export function FinalCta() {
 export function Footer() {
   return (
     <footer className="border-t border-line bg-surface py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-5 text-sm text-ink-faint md:flex-row md:items-center md:px-8">
-        <p>© {new Date().getFullYear()} Beacon</p>
-        <p className="font-mono text-xs">Arc USDC. Signed action to receipt.</p>
+      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-5 text-sm text-ink-faint md:flex-row md:items-center md:px-8">
+        <div>
+          <p>© {new Date().getFullYear()} Beacon</p>
+          <p className="mt-1 font-mono text-xs">
+            Arc USDC. Signed action to receipt.
+          </p>
+        </div>
+        <nav
+          aria-label="Footer"
+          className="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-xs"
+        >
+          <a
+            href={NETWORK.explorer}
+            target="_blank"
+            rel="noreferrer"
+            className="underline-offset-4 hover:text-ink hover:underline"
+          >
+            Arc explorer ↗
+          </a>
+          <a
+            href="https://github.com/goat-dev8/beacon-arc"
+            target="_blank"
+            rel="noreferrer"
+            className="underline-offset-4 hover:text-ink hover:underline"
+          >
+            GitHub ↗
+          </a>
+          <a
+            href="https://github.com/goat-dev8/beacon-arc/blob/main/JUDGE-QUICKSTART.md"
+            target="_blank"
+            rel="noreferrer"
+            className="underline-offset-4 hover:text-ink hover:underline"
+          >
+            Judge quickstart ↗
+          </a>
+          <a href="/flow" className="underline-offset-4 hover:text-ink hover:underline">
+            Open Flow
+          </a>
+        </nav>
       </div>
     </footer>
   );

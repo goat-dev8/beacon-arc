@@ -271,6 +271,68 @@
     }
   }
 
+  /* Global skeleton shimmer. Static wash under reduced motion. */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      100deg,
+      var(--color-paper-2) 38%,
+      color-mix(in oklab, var(--color-paper-2) 45%, white) 50%,
+      var(--color-paper-2) 62%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.7s linear infinite;
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Toast entrance. */
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .toast-enter {
+    animation: toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Skip link: visually hidden until keyboard focus. */
+  .skip-link {
+    position: fixed;
+    top: -100px;
+    left: 16px;
+    z-index: 200;
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: var(--color-dusk);
+    color: var(--color-paper);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 500;
+    transition: top 0.15s ease;
+  }
+
+  .skip-link:focus-visible {
+    top: 12px;
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+
   /* Greptile-faithful paper hero: ruler ticks + crosshair stack */
   .landing-hero {
     background-color: var(--color-paper);
@@ -334,7 +396,10 @@
   @media (prefers-reduced-motion: reduce) {
     .beacon-glow,
     .beacon-bind-glow,
-    .float-soft {
+    .beacon-skeleton,
+    .float-soft,
+    .skeleton-shimmer,
+    .toast-enter {
       animation: none !important;
     }
   }
@@ -369,6 +434,7 @@
     border-radius: 6px;
     background: var(--p-accent-soft);
     color: var(--p-accent-text);
+    overflow-wrap: anywhere;
   }
 
   .beacon-prose ul {
@@ -393,6 +459,22 @@
     margin-top: 0.62em;
     border-radius: 999px;
     background: var(--p-accent);
+  }
+
+  /* Loading skeleton for the chat answer card. */
+  .beacon-skeleton {
+    background: linear-gradient(90deg, var(--p-card) 25%, var(--p-hover) 50%, var(--p-card) 75%);
+    background-size: 200% 100%;
+    animation: beacon-shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes beacon-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   .ruler-ticks {

@@ -20,7 +20,11 @@ on Arc mainnet: status **success**, one ERC-20 Transfer of **10,000 raw = 0.01 U
 [0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83](https://explorer.arc.io/tx/0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83)
 on Arc mainnet: status **reverted** with selector `OverCap()`. The agent asked for more than the per-transaction cap, and the vault said no — **on-chain, not in a terms of service.** This is the money shot: the refusal is the product.
 
-**The real third-party payment (newest).** Transaction
+**The real swap — the vault traded (V2, newest).** Transaction
+[0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c](https://explorer.arc.io/tx/0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c)
+on Arc mainnet: status **success**, block 25808007. The agent (`0xc3b183D5e4436C20282650348BE2D6c94c4142dc`) signed an EIP-712 swap action, the executor (`0x412045b7c64d471DE57024f11E080289e6082172`) relayed it unchanged, and the V2 vault (`0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`) executed `exactInputSingle` on the pinned Uniswap v3 USDC/EURC 0.05% pool: **5,000 USDC base units → 4,463 EURC base units**, output forced back into the vault. This is not a quote — it is a trade the firewall cannot be tricked out of.
+
+**The real third-party payment (V1, newest send).** Transaction
 [0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3](https://explorer.arc.io/tx/0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3)
 on Arc mainnet: status **success** — the agent (`0xc3b183D5e4436C20282650348BE2D6c94c4142dc`) signed an EIP-712 send, the executor (`0x412045b7c64d471DE57024f11E080289e6082172`) relayed it unchanged, and the vault paid **0.01 USDC** to an independent recipient. Receipt: `0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30`.
 
@@ -28,11 +32,19 @@ Honest note: all proofs are tiny amounts (dust-scale). The first send went to th
 
 ## Step 3 — Check the contract sources (60 seconds)
 
-All three contracts are independently source-verified on Sourcify with `exact_match` (anyone can re-verify — no account, no browser session required):
+All contracts are independently source-verified on Sourcify with `exact_match` (anyone can re-verify — no account, no browser session required):
+
+V1 (send-only firewall, immutable):
 
 - Receipt registry: https://repo.sourcify.dev/5042/0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C
 - Vault factory: https://repo.sourcify.dev/5042/0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b
 - Vault: https://repo.sourcify.dev/5042/0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6
+
+V2 (adds agent-signed `executeSwap` + `executeBridge`, deployed 2026-10-13):
+
+- Receipt registry (V2): https://repo.sourcify.dev/5042/0xcecb08b2cdacaf231b1838f20f932ad265fa2583
+- Vault factory (V2): https://repo.sourcify.dev/5042/0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e
+- Vault (V2): https://repo.sourcify.dev/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe
 
 The Arc explorer's contract tab sits behind Cloudflare's bot check, so use Sourcify — it is the reproducible path.
 
@@ -42,6 +54,6 @@ Open https://beacon-arc-one.vercel.app/flow/vault (no wallet needed to read):
 
 1. Ask the flow to prepare a send. The API returns the EIP-712 action and runs preflight.
 2. Ask for an amount **over the cap**. Preflight refuses with reason `over_cap` — refused before anything is signed, nothing reaches the chain.
-3. Ask the swap chip for a quote: it returns a live Uniswap v3 quote and tells you the vault **will not trade** — the firewall's favorite word is no.
+3. Read the swap chip: it fetches a live quote from `GET /v1/quote/swap` — Uniswap v3 QuoterV2, `venue: "uniswap-v3"`. For the **V1** vault the quote is `executable: false` **always** (that vault has no swap function — the chip carries a permanent read-only banner and a disabled "Swaps stay off" button). For the **V2** vault the same quote feeds an agent-signed `executeSwap` — proven by the real trade in Step 2. The firewall's favorite word is still no: over-cap or off-allowlist, and the chain itself enforces the refusal.
 
 That's the whole product. A judge who never leaves the verify page and two explorer links has seen everything Beacon claims.

@@ -432,3 +432,37 @@ test("auth verify returns 401 on a malformed address instead of 500", async () =
   assert.equal(JSON.parse(res.body).error.code, "address");
   await app.close();
 });
+
+test("capabilities distinguish V1 send-only from V2 swap execution", async () => {
+  const { app } = await boot();
+  const res = await app.inject({ method: "GET", url: "/v1/capabilities" });
+  assert.equal(res.statusCode, 200);
+  const caps = JSON.parse(res.body);
+  // Top-level stays V1-scoped for back-compat.
+  assert.equal(caps.swap.executable, false);
+  assert.match(caps.swap.reason, /V1.*send-only/);
+  // V2 detail: swap IS executable with the real proof.
+  assert.equal(caps.swap.v2.executable, true);
+  assert.equal(caps.swap.v2.vault, "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe");
+  assert.equal(caps.swap.v2.proof.txHash, "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c");
+  // CCTP stays honest: chain-gated, not executable, not hidden.
+  assert.equal(caps.cctp.executable, false);
+  assert.match(caps.cctp.reason, /chain/);
+  assert.ok(!/bridge complete|executed successfully/.test(caps.cctp.reason));
+  await app.close();
+});
+
+test("v2 info endpoint returns V2 addresses and real proofs", async () => {
+  const { app } = await boot();
+  const res = await app.inject({ method: "GET", url: "/v1/v2/info" });
+  assert.equal(res.statusCode, 200);
+  const info = JSON.parse(res.body);
+  assert.equal(info.chainId, 5042);
+  assert.equal(info.contracts.vault, "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe");
+  assert.equal(info.contracts.factory, "0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e");
+  assert.equal(info.contracts.registry, "0xcecb08b2cdacaf231b1838f20f932ad265fa2583");
+  assert.equal(info.proofs.swap.txHash, "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c");
+  assert.equal(info.proofs.send.txHash, "0x0b45709e65921deda6854e394a5a03ec855d3fa9e8ffa80d0d169d8b625583bc");
+  assert.equal(info.proofs.bridge.status, "chain-gated");
+  await app.close();
+});

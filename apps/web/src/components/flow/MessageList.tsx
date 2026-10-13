@@ -129,9 +129,26 @@ export function MessageList({
           ))}
         </AnimatePresence>
         {pending && (
-          <div className="flex items-center gap-2 text-[15px] text-[var(--p-muted)]" role="status" aria-live="polite">
-            <Loader2 className="size-4 animate-spin text-[var(--p-accent-text)]" />
-            <span className="font-display">Thinking…</span>
+          <div
+            className="w-full max-w-[95%] space-y-3"
+            role="status"
+            aria-live="polite"
+            aria-label="Beacon is reading Arc"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-display text-[13px] font-semibold tracking-tight text-[var(--p-fg)]">
+                Beacon
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-2 py-0.5 text-[10px] text-[var(--p-muted)]">
+                <Loader2 className="size-3 animate-spin text-[var(--p-accent-text)]" aria-hidden />
+                reading Arc…
+              </span>
+            </div>
+            <div className="space-y-2" aria-hidden>
+              <div className="beacon-skeleton h-3.5 w-2/3 rounded-md" />
+              <div className="beacon-skeleton h-3.5 w-full rounded-md" />
+              <div className="beacon-skeleton h-3.5 w-5/6 rounded-md" />
+            </div>
           </div>
         )}
         <div ref={bottomRef} aria-hidden />

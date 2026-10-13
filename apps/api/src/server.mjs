@@ -5,6 +5,14 @@ import { actionHash, recoverAgent, sendTypedData } from "./eip712.mjs";
 import { preflightSend } from "./preflight.mjs";
 import { factoryHasCode, quoteV2, quoteV3, readChainId, readReceipt, readRecipient, readRecordedEvents, readVault, verifyQuoterPinned } from "./chain.mjs";
 import { V3_USDC_EURC_500, V3_FEE, V3_QUOTER, V3_ROUTER02 } from "./constants.mjs";
+import {
+  ARC_EURC,
+  ARC_USDC,
+  CCTP_MESSENGER_V2,
+  V2_FACTORY,
+  V2_REGISTRY,
+  V2_VAULT,
+} from "./constants.mjs";
 import { newBearer } from "./store.mjs";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -35,6 +43,44 @@ export function createServer(deps) {
   });
 
   app.get("/v1/capabilities", async () => CAPABILITIES);
+
+  // Beacon V2: live contracts plus the real on-chain execution proofs.
+  // V1 stays live and untouched; this endpoint is additive.
+  app.get("/v1/v2/info", async () => ({
+    network: "arc-mainnet",
+    chainId: CHAIN_ID,
+    contracts: {
+      vault: V2_VAULT,
+      factory: V2_FACTORY,
+      registry: V2_REGISTRY,
+    },
+    pins: {
+      usdc: ARC_USDC,
+      eurc: ARC_EURC,
+      swapRouter: V3_ROUTER02,
+      usdcEurcPool: V3_USDC_EURC_500,
+      swapFee: V3_FEE,
+      tokenMessenger: CCTP_MESSENGER_V2,
+    },
+    proofs: {
+      swap: {
+        txHash: "0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c",
+        block: "25808007",
+        amountIn: "5000",
+        amountOut: "4463",
+        detail: "0.005 USDC -> 4,463 EURC base units, agent-signed + executor-relayed",
+      },
+      send: {
+        txHash: "0x0b45709e65921deda6854e394a5a03ec855d3fa9e8ffa80d0d169d8b625583bc",
+        detail: "0.001 USDC, agent-signed + executor-relayed",
+      },
+      bridge: {
+        status: "chain-gated",
+        detail: "V2 bridge code is correct (7-parameter CCTP V2 depositForBurn, 42/42 forge tests) but Arc's CCTP TokenMessenger rejects contract-initiated burns — a chain-level limitation, not a Beacon bug.",
+        eoaBurnTx: "0xe519221e1c1d7b1c6225f22c1bd6bba9e76d1bb77fc467cf78fd1eace23731f1",
+      },
+    },
+  }));
 
   // Startup squat-guard for the pinned v3 quoter. Runs once, result cached;
   // the quote endpoint refuses to serve while the pin is not verified.

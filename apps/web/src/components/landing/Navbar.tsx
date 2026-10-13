@@ -36,8 +36,8 @@ export function Navbar() {
             <a href="#story" className="hover:text-ink">
               Story
             </a>
-            <a href="#architecture" className="hover:text-ink">
-              Path
+            <a href="#live-proof" className="hover:text-ink">
+              Proof
             </a>
             <a href="#protect" className="hover:text-ink">
               Protect

@@ -1,9 +1,14 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { LandingPage } from "@/pages/LandingPage";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProductShell } from "@/components/ProductShell";
+import { GlobalErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { ToastProvider } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { BeaconMark } from "@/components/diagrams/BeaconDiagrams";
 import { wagmiConfig } from "@/lib/reown";
 
 const GetStartedPage = lazy(() =>
@@ -37,29 +42,63 @@ const queryClient = new QueryClient({
 
 function RouteFallback() {
   return (
-    <div className="grid min-h-dvh place-items-center bg-[var(--p-bg,#0a0c0b)] text-sm text-[var(--p-muted,#9a96a8)]">
-      Loading Beacon…
+    <div className="grid min-h-dvh place-items-center bg-[var(--p-bg,#0a0c0b)] px-5">
+      <div className="w-full max-w-xs">
+        <div className="mx-auto grid size-11 place-items-center rounded-xl bg-[var(--p-accent,#39e08a)] text-[var(--p-on-accent,#06130c)]">
+          <BeaconMark className="size-6 animate-pulse" />
+        </div>
+        <p className="mt-4 text-center text-sm text-[var(--p-muted,#9a96a8)]">
+          Loading Beacon…
+        </p>
+        <div className="mt-4 space-y-2" aria-hidden>
+          <Skeleton shimmer className="h-3 w-full rounded-full" />
+          <Skeleton shimmer className="h-3 w-4/5 rounded-full" />
+          <Skeleton shimmer className="h-3 w-3/5 rounded-full" />
+        </div>
+      </div>
     </div>
+  );
+}
+
+/** Landmark wrapper so the skip link always has a target. */
+function PageLandmark({ children }: { children: ReactNode }) {
+  return (
+    <main id="main-content" tabIndex={-1} className="outline-none">
+      {children}
+    </main>
   );
 }
 
 function RedirectMcpPreserveQuery() {
   const location = useLocation();
-  return <Navigate to={`/flow/mcp${location.search}${location.hash}`} replace />;
+  return (
+    <Navigate to={`/flow/mcp${location.search}${location.hash}`} replace />
+  );
 }
 
-export default function App() {
+function AppRoutes() {
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Routes>
-          <Route path="/" element={<LandingPage />} />
+    <>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <GlobalErrorBoundary>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <PageLandmark>
+                <LandingPage />
+              </PageLandmark>
+            }
+          />
           <Route
             path="/start"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <GetStartedPage />
+                <PageLandmark>
+                  <GetStartedPage />
+                </PageLandmark>
               </Suspense>
             }
           />
@@ -119,14 +158,32 @@ export default function App() {
             path="/verify/:jobId"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <VerifyPage />
+                <PageLandmark>
+                  <VerifyPage />
+                </PageLandmark>
               </Suspense>
             }
           />
-          <Route path="/desk-legacy" element={<Navigate to="/flow/desk" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="/desk-legacy"
+            element={<Navigate to="/flow/desk" replace />}
+          />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </BrowserRouter>
+      </GlobalErrorBoundary>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </ToastProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

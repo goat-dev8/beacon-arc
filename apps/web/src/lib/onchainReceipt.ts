@@ -34,6 +34,100 @@ export type BrowserReceipt = {
   jobKey: string;
 };
 
+export type RecordedEvent = {
+  txHash: string;
+  blockNumber: string;
+  blockTime?: number;
+};
+
+const LOGS_RANGE = 10_000; // RPC limit per eth_getLogs call
+const LOGS_MAX_CHUNKS = 24; // scan back ~240k blocks, then give up gracefully
+const LOGS_PARALLEL = 6;
+
+async function rpcCall(method: string, params: unknown[], id: number): Promise<any> {
+  const res = await fetch(NETWORK.rpc, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+  });
+  if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
+  const json = (await res.json()) as { result?: any; error?: { message?: string } };
+  if (json.error) throw new Error(json.error.message ?? "rpc error");
+  return json.result;
+}
+
+/**
+ * Find the single Recorded(actionHash) log for this receipt and return the
+ * recording transaction hash + block number (+ block timestamp when readable).
+ * The registry reverts AlreadyRecorded on duplicates, so there is at most one.
+ * The RPC caps eth_getLogs at 10k blocks, so we scan backwards from the tip in
+ * bounded chunks — recent receipts resolve in one batch, old ones degrade
+ * gracefully to null. Never throws — returns null when the RPC cannot answer.
+ */
+export async function readRecordedEvent(actionHash: string): Promise<RecordedEvent | null> {
+  const hash = actionHash.trim();
+  if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) return null;
+  try {
+    const topic0 = keccak256(
+      toBytes("Recorded(bytes32,address,address,address,uint256,uint256)"),
+    );
+    const topic1 = `0x${hash.slice(2).toLowerCase().padStart(64, "0")}`;
+    const tipHex = (await rpcCall("eth_blockNumber", [], 1)) as string;
+    const tip = BigInt(tipHex);
+    const chunks: Array<{ from: string; to: string }> = [];
+    for (let i = 0; i < LOGS_MAX_CHUNKS; i += 1) {
+      const to = tip - BigInt(i * LOGS_RANGE);
+      if (to < 0n) break;
+      const from = to - BigInt(LOGS_RANGE - 1) < 0n ? 0n : to - BigInt(LOGS_RANGE - 1);
+      chunks.push({ from: `0x${from.toString(16)}`, to: `0x${to.toString(16)}` });
+      if (from === 0n) break;
+    }
+    let found: { transactionHash?: string; blockNumber?: string } | null = null;
+    for (let b = 0; b < chunks.length && !found; b += LOGS_PARALLEL) {
+      const batch = chunks.slice(b, b + LOGS_PARALLEL);
+      const results = await Promise.all(
+        batch.map((c, k) =>
+          rpcCall(
+            "eth_getLogs",
+            [
+              {
+                address: CONTRACTS.receiptRegistry,
+                topics: [topic0, topic1],
+                fromBlock: c.from,
+                toBlock: c.to,
+              },
+            ],
+            100 + b + k,
+          ).catch(() => null),
+        ),
+      );
+      for (const logs of results) {
+        const log = (logs as Array<{ transactionHash?: string; blockNumber?: string }> | null)?.[0];
+        if (log?.transactionHash && log?.blockNumber) {
+          found = log;
+          break;
+        }
+      }
+    }
+    if (!found) return null;
+    const out: RecordedEvent = {
+      txHash: found.transactionHash as string,
+      blockNumber: BigInt(found.blockNumber as string).toString(10),
+    };
+    try {
+      const block = (await rpcCall("eth_getBlockByNumber", [found.blockNumber, false], 2)) as {
+        timestamp?: string;
+      } | null;
+      if (block?.timestamp) out.blockTime = Number(BigInt(block.timestamp)) * 1000;
+    } catch {
+      /* timestamp is a nicety, not a requirement */
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 export type ApiReceipt = {
   exists?: boolean;
   storageRoot?: string;

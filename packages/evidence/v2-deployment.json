@@ -1,0 +1,32 @@
+{
+  "network": "arc-mainnet",
+  "chainId": 5042,
+  "deployedAt": "2026-10-13T20:29:23.822Z",
+  "deployer": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "v2Owner": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "v2Executor": "0x412045b7c64d471DE57024f11E080289e6082172",
+  "contracts": {
+    "registry": "0xcecb08b2CDacaf231B1838f20f932AD265fa2583",
+    "factory": "0xA7C95a58B499eD4dc607E6e7030CECe2B00fAB6e",
+    "vault": "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe"
+  },
+  "txs": {
+    "registry": "0x92a3b25e0e8fd3862843443a789a1cff2fdd88d074c5d0bd45cd026fa985f314",
+    "factory": "0xfb6c5a07dc0a40e0449c54d038f4ca1b5f35077e79ad9deeb0a46a7f7bc8a805"
+  },
+  "pins": {
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "eurc": "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
+    "swapRouter": "0x53BF6B0684Ec7eF91e1387Da3D1a1769bC5A6F77",
+    "usdcEurcPool": "0x6fd5F2fb831940DcD61A98c5B3aCB7D8C6f3bFc1",
+    "swapFee": 500,
+    "tokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+    "initialTokenOutAllowlist": [
+      "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1"
+    ],
+    "initialDomainAllowlist": [
+      6
+    ]
+  },
+  "note": "V1 (0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6) untouched. V1 evidence in evidence/deployment.json."
+}

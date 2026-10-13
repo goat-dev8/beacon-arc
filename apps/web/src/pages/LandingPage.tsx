@@ -1,6 +1,5 @@
 import { Hero, HeroTrustStrip } from "@/components/landing/Hero";
 import { Navbar } from "@/components/landing/Navbar";
-import { ArchitectureStrip } from "@/components/landing/ArchitectureStrip";
 import { WhyZeroGSection } from "@/components/landing/WhyZeroG";
 import { StoryHowItWorks } from "@/components/landing/StoryHowItWorks";
 import { ProtectionStory } from "@/components/landing/ProtectionStory";
@@ -10,8 +9,6 @@ import {
   Footer,
   LiveProofSection,
   ManifestoQuote,
-  QualityBand,
-  QualitySection,
   WhatIsBeacon,
 } from "@/components/landing/Sections";
 
@@ -23,12 +20,9 @@ export function LandingPage() {
       <HeroTrustStrip />
       <ManifestoQuote />
       <WhatIsBeacon />
-      <StoryHowItWorks />
-      <ArchitectureStrip />
-      <ProtectionStory />
       <LiveProofSection />
-      <QualityBand />
-      <QualitySection />
+      <StoryHowItWorks />
+      <ProtectionStory />
       <WhyZeroGSection />
       <ContractsSection />
       <FinalCta />

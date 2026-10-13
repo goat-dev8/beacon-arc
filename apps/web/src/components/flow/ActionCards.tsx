@@ -10,6 +10,7 @@ import { executeLifiBridge } from "@/lib/wallet";
 import { classifyExecutionFailure } from "@/lib/walletFailures";
 import { swapQuoteExpired } from "@/lib/quoteFreshness";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
+import { ReadOnlyQuoteBanner, SwapOffButton } from "@/components/ReadOnlySwapCard";
 import type { CardExecutionState, AgentCard } from "@/lib/executionPhases";
 import type { ConvState, PaidResendMeta } from "@/lib/flowTypes";
 
@@ -761,9 +762,7 @@ export function ActionCard({
     const est = String(card.estimatedOut ?? card.estimatedFxrp);
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] shadow-[var(--p-shadow)] p-4">
-        <p className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90">
-          Read-only quote. The live vault has no swap function — Beacon will not trade.
-        </p>
+        <ReadOnlyQuoteBanner className="mb-3" />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
           <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
@@ -794,14 +793,7 @@ export function ActionCard({
         ) : null}
         {card.honesty ? <p className="mt-2 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
         <FccHardwareStrip card={card} />
-        <button
-          type="button"
-          disabled
-          title="The live vault has no swap function. This quote can never become a trade."
-          className="mt-4 cursor-not-allowed rounded-full bg-[var(--p-border)] px-5 py-2 text-sm font-medium text-[var(--p-muted)] ring-1 ring-[var(--p-border-strong)]"
-        >
-          Swaps stay off — the vault will not trade
-        </button>
+        <SwapOffButton />
       </div>
     );
   }

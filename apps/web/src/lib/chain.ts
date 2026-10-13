@@ -26,3 +26,15 @@ export const CONTRACTS = {
   agentVault: VAULT,
   evidenceAnchor: REGISTRY,
 } as const;
+
+// Beacon V2 (deployed 2026-10-13, Sourcify exact_match). V1 above stays live.
+const V2_VAULT = "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe" as `0x${string}`;
+const V2_FACTORY = "0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e" as `0x${string}`;
+const V2_REGISTRY = "0xcecb08b2cdacaf231b1838f20f932ad265fa2583" as `0x${string}`;
+
+export const V2_CONTRACTS = {
+  vault: V2_VAULT,
+  vaultFactory: V2_FACTORY,
+  receiptRegistry: V2_REGISTRY,
+  executor: EXECUTOR,
+} as const;

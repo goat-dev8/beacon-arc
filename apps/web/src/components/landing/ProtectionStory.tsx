@@ -107,10 +107,10 @@ export function ProtectionStory() {
             Get Started
           </Link>
           <Link
-            to="/flow/security"
+            to="/flow/vault"
             className="inline-flex h-12 items-center border border-dashed border-line bg-surface px-6 font-display text-sm text-ink hover:bg-paper-2 active:scale-[0.98]"
           >
-            Open Beacon Safe
+            Try the vault journey
           </Link>
         </div>
       </div>

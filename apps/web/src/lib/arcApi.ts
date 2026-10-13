@@ -3,6 +3,9 @@ import { apiBase } from "./publicEnv";
 import { publicClient } from "./wallet";
 import { CONTRACTS } from "./chain";
 import { readArcReceipt } from "./onchainReceipt";
+import { normalizeApiSwapQuote, type ApiSwapQuoteBody, type SwapQuote } from "./swapQuote";
+
+export type { SwapQuote };
 
 export type ArcCapability = { executable: boolean; reason?: string };
 
@@ -45,16 +48,28 @@ export function fetchArcCapabilities(): Promise<ArcCapabilities> {
   return getJson("/v1/capabilities");
 }
 
-export type SwapQuote = {
-  status: "quoted" | "NO_ROUTE";
-  amountIn: string;
-  amountOut?: string;
-  executable: boolean;
-  reason: string;
-};
-
-export function fetchSwapQuote(amount = "10000"): Promise<SwapQuote> {
-  return readRouterQuote(amount);
+/**
+ * Prefer the API's pinned Uniswap v3 quoter (always executable:false).
+ * If the API is unreachable (e.g. local dev), fall back to a direct v2
+ * router read, marked indicative so the UI never presents it as v3.
+ */
+export async function fetchSwapQuote(amount = "10000"): Promise<SwapQuote> {
+  try {
+    const res = await fetch(`${apiBase()}/v1/quote/swap?amount=${encodeURIComponent(amount)}`);
+    const body = (await res.json().catch(() => null)) as ApiSwapQuoteBody | null;
+    if (body && typeof body.status === "string") {
+      return normalizeApiSwapQuote(body, amount);
+    }
+  } catch {
+    /* API unreachable — fall through to the direct router read. */
+  }
+  const fallback = await readRouterQuote(amount);
+  return {
+    ...fallback,
+    venue: "uniswap-v2",
+    indicative: true,
+    reason: `${fallback.reason} (direct router read — the quote API was unreachable)`,
+  };
 }
 
 const v2QuoteAbi = [
@@ -143,7 +158,7 @@ const balanceAbi = [
 const LOCAL_CAPABILITIES: ArcCapabilities = {
   chainId: 5042,
   send: { executable: true },
-  swap: { executable: false, reason: "Uniswap V2 can quote USDC to EURC. The deployed vault has no swap function, so Beacon will not trade." },
+  swap: { executable: false, reason: "Uniswap v3 can quote USDC to EURC. The deployed vault has no swap function, so Beacon will not trade." },
   cctp: { executable: false, reason: "CCTP contracts are on Arc. This vault cannot burn or mint, so a burn is not a completed bridge." },
   privacy: { executable: false, reason: "Arc Privacy Sector is planned and is not on mainnet. Beacon will not report a private transfer." },
   pq: { executable: false, reason: "The PQ precompile at 0x1800…0004 is 1 byte on mainnet. This is not a PQ wallet." },
@@ -188,8 +203,8 @@ export async function fetchArcVault(owner: string): Promise<ArcVault> {
   };
 }
 
-const KNOWN_RECEIPT = "0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a";
-const KNOWN_SEND = "0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab";
+const KNOWN_RECEIPT = "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30";
+const KNOWN_SEND = "0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3";
 const KNOWN_OVER_CAP = "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83";
 const SITE = "https://beacon-arc-one.vercel.app";
 const EXPLORER = "https://explorer.arc.io";
@@ -243,33 +258,64 @@ export async function readFlowGrant(vault: string, grantId = 1n): Promise<FlowGr
   };
 }
 
-export async function readAllowedRecipients(vault: string): Promise<string[]> {
+export type AllowlistRead = {
+  recipients: string[];
+  /** False when any log range failed — the list may be incomplete. */
+  complete: boolean;
+};
+
+/**
+ * Enumerate allowlisted recipients from RecipientAllowed logs.
+ *
+ * The public RPC rejects eth_getLogs ranges above ~4k blocks, so the scan is:
+ *  1. the deploy window (genesis allowlists),
+ *  2. a proof anchor around the project's own third-party allowlist
+ *     (tx 0xbb049a…, block 25790867, 2026-10-13), which sits between the
+ *     deploy window and the trailing window and would otherwise be missed,
+ *  3. a trailing window (recent owner actions via the UI).
+ * If any range fails, `complete` is false and the UI must say so — a
+ * silently partial allowlist is worse than no list.
+ */
+export async function readAllowedRecipients(vault: string): Promise<AllowlistRead> {
   const client = publicClient();
   const latest = await client.getBlockNumber();
   const first = 24_848_337n;
   const chunk = 4_000n;
-  const ranges: Array<[bigint, bigint]> = [[first, first + chunk - 1n > latest ? latest : first + chunk - 1n]];
-  const recentFrom = latest > chunk * 3n ? latest - chunk * 3n + 1n : first;
-  if (recentFrom > ranges[0][1]) {
-    for (let from = recentFrom; from <= latest; from += chunk) {
-      ranges.push([from, from + chunk - 1n > latest ? latest : from + chunk - 1n]);
-    }
+  const clamp = (to: bigint) => (to > latest ? latest : to);
+  const ranges: Array<[bigint, bigint]> = [[first, clamp(first + chunk - 1n)]];
+  const proofAnchor: [bigint, bigint] = [25_788_001n, 25_792_000n];
+  if (proofAnchor[1] < latest && proofAnchor[0] > ranges[0][1]) ranges.push(proofAnchor);
+  const trailingChunks = 12n;
+  let trailingFrom = latest > chunk * trailingChunks ? latest - chunk * trailingChunks + 1n : first;
+  // The proof anchor may sit inside the trailing window; resume after it.
+  const lastCovered = ranges[ranges.length - 1][1];
+  if (trailingFrom <= lastCovered) trailingFrom = lastCovered + 1n;
+  for (let from = trailingFrom; from <= latest; from += chunk) {
+    ranges.push([from, clamp(from + chunk - 1n)]);
   }
-  const parts = await Promise.all(
-    ranges.map(([from, to]) =>
-      client.getLogs({
-        address: vault as `0x${string}`,
-        event: allowedEvent,
-        fromBlock: from,
-        toBlock: to,
-      }),
-    ),
-  );
+  let complete = true;
   const state = new Map<string, boolean>();
-  for (const log of parts.flat()) {
-    if (log.args.recipient) state.set(log.args.recipient, Boolean(log.args.allowed));
-  }
-  return [...state.entries()].filter(([, allowed]) => allowed).map(([recipient]) => recipient);
+  await Promise.all(
+    ranges.map(async ([from, to]) => {
+      try {
+        const logs = await client.getLogs({
+          address: vault as `0x${string}`,
+          event: allowedEvent,
+          fromBlock: from,
+          toBlock: to,
+        });
+        for (const log of logs) {
+          if (log.args.recipient) state.set(log.args.recipient, Boolean(log.args.allowed));
+        }
+      } catch {
+        complete = false;
+      }
+    }),
+  );
+  return {
+    recipients: [...state.entries()].filter(([, allowed]) => allowed).map(([recipient]) => recipient),
+    complete,
+  };
 }
 
 const domainAbi = [
@@ -287,7 +333,6 @@ export type FlowReceipt = {
 
 export type FlowRail = {
   block: string;
-  routerBytes?: number;
   vaultBytes?: number;
   vaultHasSend?: boolean;
   vaultHasSwap?: boolean;
@@ -328,9 +373,9 @@ export function answerFlow(
     vault: ArcVault | null;
     ownerConnected: boolean;
     wallet?: string | null;
-    quote?: { status: string; amountOut?: string } | null;
+    quote?: SwapQuote | null;
     grant?: FlowGrant | null;
-    allowed?: string[] | null;
+    allowed?: AllowlistRead | null;
     rail?: FlowRail | null;
   },
 ): string {
@@ -356,20 +401,32 @@ export function answerFlow(
   const blockLine = rail?.block ? `Read at block ${rail.block}.` : "";
 
   if (q.includes("swap")) {
-    const quoted = read.quote?.status === "quoted" && read.quote.amountOut
-      ? `getAmountsOut(10000, [USDC, EURC]) returned ${read.quote.amountOut} EURC base units.`
-      : "getAmountsOut for 10000 USDC base units returned no output.";
+    const quote = read.quote;
+    const isV2Fallback = quote?.venue === "uniswap-v2";
+    const venueLabel = isV2Fallback ? "Uniswap v2 (indicative only)" : "Uniswap v3";
+    const quoteLine =
+      quote?.status === "quoted" && quote.amountOut
+        ? `${venueLabel} quoted 10000 USDC base units (0.01 USDC) at ${quote.amountOut} EURC base units.${
+            quote.indicative
+              ? " This direct router read is indicative only — the v3 quote API was unreachable."
+              : ""
+          }`
+        : `The quoter returned no output for 10000 USDC base units. ${quote?.reason ?? "Beacon will not invent a number."}`;
+    const sourceLine = quote?.quoter
+      ? `- Quoter \`${quote.quoter}\`${quote.fee != null ? `, fee ${quote.fee}` : ""}${
+          quote.pool ? `, USDC→EURC pool \`${quote.pool}\`` : ""
+        }.`
+      : "- Path: USDC `0x3600000000000000000000000000000000000000` to EURC `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1`.";
     const bytecode = rail?.vaultBytes != null
       ? `Vault bytecode is ${rail.vaultBytes} bytes. It ${rail.vaultHasSend ? "contains" : "does not contain"} executeSend \`${SEND_SELECTOR}\` and ${rail.vaultHasSwap ? "contains" : "does not contain"} swapExactTokensForTokens \`${SWAP_SELECTOR}\`.`
       : "The vault bytecode was not read, so Beacon will not claim a swap function.";
     return [
       "## Swap quote",
       blockLine,
-      `- Router \`${V2_ROUTER}\`${rail?.routerBytes != null ? ` is ${rail.routerBytes} bytes` : ""}.`,
-      `- ${quoted}`,
-      "- Path: USDC `0x3600000000000000000000000000000000000000` to EURC `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1`.",
+      sourceLine,
+      `- ${quoteLine}`,
+      "- **executable: false** — the live vault has no swap function, so Beacon will not trade. This quote is not a fill.",
       bytecode,
-      "Beacon will not send a swap. This quote is not a fill.",
     ].filter(Boolean).join("\n");
   }
   if (q.includes("cctp") || q.includes("bridge")) {
@@ -380,15 +437,20 @@ export function answerFlow(
       `- TokenMessengerV2 \`${MESSENGER}\`${rail?.messengerBytes != null ? ` is ${rail.messengerBytes} bytes` : ""}.`,
       `- MessageTransmitterV2 \`${TRANSMITTER}\`${rail?.transmitterBytes != null ? ` is ${rail.transmitterBytes} bytes` : ""}. ${domain}`,
       "This vault has no burn or mint function. A burn is not a completed bridge, so Beacon will not start one.",
+      "Attestation lookup is read-only: Circle publishes one attestation per message hash after a burn. This vault cannot burn, so Beacon has no attested message to show.",
     ].filter(Boolean).join("\n");
   }
   if (q.includes("private")) {
+    const pqLine = rail?.pqBytes == null
+      ? "The PQ precompile was not read on this query."
+      : `PQ verify precompile \`${PQ}\` is ${rail.pqBytes} ${rail.pqBytes === 1 ? "byte" : "bytes"} on this read — an authorization primitive, not a privacy primitive.`;
     return [
       "## Privacy",
       blockLine,
-      "Arc's published mainnet address list has no Privacy Sector contract to call.",
+      `- ${pqLine}`,
+      "Arc has no live confidential transactions on mainnet; the privacy sector is roadmap.",
       "https://docs.arc.io/arc/concepts/opt-in-privacy",
-      "Beacon will not report a private transfer.",
+      "Beacon does not offer private settlement and will not report a private transfer.",
     ].filter(Boolean).join("\n");
   }
   if (q.includes("pq")) {
@@ -490,12 +552,16 @@ export function answerFlow(
     return lines.join("\n");
   }
   if (q.includes("who can") || (q.includes("allow") && !q.includes("send"))) {
-    const listed = read.allowed ?? [];
+    const allow = read.allowed;
+    const listed = allow?.recipients ?? [];
     return [
       "## Allowlist",
       listed.length
         ? listed.map((addr) => `- \`${addr}\` is allowed`).join("\n")
-        : "- No RecipientAllowed log was found in the vault's first blocks or the latest window.",
+        : "- No RecipientAllowed log was found in the scanned windows.",
+      allow && !allow.complete
+        ? "- Note: part of the log scan failed on this read, so this list may be incomplete."
+        : "",
       "An empty address does not broadcast. A blocked recipient reverts.",
       vault ? `- Vault: ${EXPLORER}/address/${vault.vault}` : "",
     ].filter(Boolean).join("\n");
@@ -509,7 +575,7 @@ export async function answerLiveFlow(prompt: string, wallet: string | null): Pro
   const client = publicClient();
   const wantSwap = q.includes("swap");
   const wantCctp = q.includes("cctp") || q.includes("bridge");
-  const wantPq = q.includes("pq");
+  const wantPq = q.includes("pq") || q.includes("private");
   const wantErc = q.includes("8004");
   const wantVerify = q.includes("verify") || q.includes("receipt");
   const wantCap = q.includes("cap");
@@ -518,12 +584,11 @@ export async function answerLiveFlow(prompt: string, wallet: string | null): Pro
   const wantAllow = q.includes("who can") || (q.includes("allow") && !q.includes("send") && !q.includes("prepare"));
   const vaultAddress = (vault?.vault ?? CONTRACTS.vault) as `0x${string}`;
 
-  const [block, quote, grant, allowed, routerCode, vaultCode, messengerCode, transmitterCode, domain, pqCode, identityCode, implSlot, receipt, overCap, capabilities] = await Promise.all([
+  const [block, quote, grant, allowed, vaultCode, messengerCode, transmitterCode, domain, pqCode, identityCode, implSlot, receipt, overCap, capabilities] = await Promise.all([
     client.getBlockNumber().catch(() => null),
-    wantSwap ? readRouterQuote("10000") : Promise.resolve(null),
+    wantSwap ? fetchSwapQuote("10000") : Promise.resolve(null),
     vault && wantGrant ? readFlowGrant(vault.vault).catch(() => null) : Promise.resolve(null),
-    vault && wantAllow ? readAllowedRecipients(vault.vault).catch(() => []) : Promise.resolve(null),
-    wantSwap ? client.getBytecode({ address: V2_ROUTER }).catch(() => undefined) : Promise.resolve(undefined),
+    vault && wantAllow ? readAllowedRecipients(vault.vault).catch(() => ({ recipients: [], complete: false })) : Promise.resolve(null),
     wantSwap ? client.getBytecode({ address: vaultAddress }).catch(() => undefined) : Promise.resolve(undefined),
     wantCctp ? client.getBytecode({ address: MESSENGER }).catch(() => undefined) : Promise.resolve(undefined),
     wantCctp ? client.getBytecode({ address: TRANSMITTER }).catch(() => undefined) : Promise.resolve(undefined),
@@ -543,7 +608,6 @@ export async function answerLiveFlow(prompt: string, wallet: string | null): Pro
 
   const rail: FlowRail = { block: block == null ? "" : block.toString() };
   if (wantSwap) {
-    rail.routerBytes = byteLength(routerCode);
     rail.vaultBytes = byteLength(vaultCode);
     rail.vaultHasSend = hasSelector(vaultCode, SEND_SELECTOR);
     rail.vaultHasSwap = hasSelector(vaultCode, SWAP_SELECTOR);

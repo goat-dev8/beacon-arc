@@ -14,6 +14,8 @@ import {
   verifySession,
 } from "@/lib/arcApi";
 import { useProductWallet } from "@/lib/productWallet";
+import { ReadOnlySwapCard } from "@/components/ReadOnlySwapCard";
+import { V2LiveSection } from "@/components/V2LiveSection";
 import { ensureArcNetwork, publicClient, shortAddress, signPersonalMessage, walletClient, writeArcContract } from "@/lib/wallet";
 
 const factoryAbi = [
@@ -439,13 +441,18 @@ export function VaultJourneyPage() {
           </p>
         )}
         <p className="mt-3 text-sm text-[var(--p-muted)]">{note}</p>
-        {quoteQuery.data && (
-          <p className="mt-3 text-sm text-[var(--p-muted)]">
-            Uniswap V2 read: 0.01 USDC quotes {quoteQuery.data.amountOut} EURC base units.
-            {" "}{quoteQuery.data.reason}
-          </p>
-        )}
       </section>
+
+      <section className="mt-4" aria-label="Read-only swap quote">
+        <ReadOnlySwapCard
+          quote={quoteQuery.data ?? null}
+          isPending={quoteQuery.isPending}
+          isError={quoteQuery.isError}
+          onRetry={() => void quoteQuery.refetch()}
+        />
+      </section>
+
+      <V2LiveSection />
 
       <div className="mt-4 grid scroll-mt-24 gap-4 lg:grid-cols-2">
         <section id="step-1" className="scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">

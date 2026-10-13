@@ -16,7 +16,7 @@ export function Composer({ input, onChange, onSend, pending, agentHint, onSugges
       <div className="mx-auto w-full max-w-[42rem]">
         <SuggestionChips onSelect={onSuggestion} disabled={pending} />
         {agentHint && (
-          <p className="mb-1.5 font-mono text-[10px] text-[var(--p-faint)]">
+          <p className="mb-1.5 truncate font-mono text-[10px] text-[var(--p-faint)]" title={`Active · ${agentHint}`}>
             Active · {agentHint}
             <span className="text-[var(--p-muted)]"> · @image @swap @verify @safe</span>
           </p>

@@ -113,7 +113,10 @@ function ShellChrome() {
           <BeaconMark className="size-5" />
         </Link>
 
-        <nav className="flex flex-col gap-0.5">
+        <nav
+          className="flex flex-col gap-0.5"
+          aria-label="Beacon"
+        >
           {NAV.map((item) => (
             <RailLink key={item.to} {...item} />
           ))}
@@ -147,7 +150,11 @@ function ShellChrome() {
       </aside>
 
       {/* Soft enter fade. Wallet lives above this so tab changes never flash Connect. */}
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div
+        id="main-content"
+        tabIndex={-1}
+        className="min-h-0 min-w-0 flex-1 overflow-hidden outline-none"
+      >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={routeKey}

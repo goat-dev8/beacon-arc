@@ -155,12 +155,15 @@ export function FlowPage() {
       }
     },
     onError: (err) => {
+      const detail = err instanceof Error && err.message ? err.message : "Could not read Arc.";
       setMessages((m) => [
         ...m,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: err instanceof Error ? err.message : "Could not read Arc.",
+          text: ["## Could not read Arc", detail, "Nothing was signed and no USDC moved. Try the chip again."].join(
+            "\n",
+          ),
           displayModel: "Arc vault",
         },
       ]);

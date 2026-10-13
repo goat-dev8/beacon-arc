@@ -6,7 +6,8 @@ test("the vault desk is the USDC journey", async ({ page }) => {
   await expect(page.getByText("Escrow AI jobs")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Sign and relay the send" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Block recipient" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "8. Activity" })).toBeVisible();
+  // The step number is rendered aria-hidden, so the accessible heading name is "Activity" alone.
+  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
 });
 
 test("the landing does not describe a compute job", async ({ page }) => {
@@ -120,10 +121,26 @@ test("the vault journey loads without console errors", async ({ page }) => {
   );
 });
 
-test("the swap chip declares the read-only banner", async ({ page }) => {
+test("the vault page swap quote is honest: read-only banner and disabled trade button", async ({ page }) => {
   await page.goto("/flow/vault");
-  // The quote is a live router read; the banner must say the vault will not trade.
-  await expect(
-    page.getByText("The live vault has no swap function"),
-  ).toBeVisible({ timeout: 60_000 });
+  // Same honesty UI the chat swap card already has
+  // (apps/web/src/components/flow/ActionCards.tsx, "swap_quote"): a permanent
+  // read-only banner plus a disabled action button — never a "Confirm swap".
+  const banner = page.getByText("Read-only quote", { exact: false });
+  await expect(banner).toBeVisible({ timeout: 60_000 });
+  const tradeOff = page.getByRole("button", { name: /swaps stay off/i });
+  await expect(tradeOff).toBeVisible();
+  await expect(tradeOff).toBeDisabled();
+});
+
+test("the vault page swap chip quotes uniswap v3, not v2", async ({ page }) => {
+  await page.goto("/flow/vault");
+  // The rescue moved quotes from the thin-liquidity Uniswap V2 router to the
+  // pinned Uniswap V3 quoter (API venue "uniswap-v3"). The vault chip must
+  // reflect v3; the old V2-router label must be gone entirely.
+  // Scoped to the EURC chip so "policy v3" cannot false-positive.
+  await expect(page.getByText(/uniswap v3.*eurc/i)).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByText("Uniswap V2 read")).toHaveCount(0);
 });

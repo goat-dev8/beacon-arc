@@ -337,3 +337,5 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **Not run:** gates (npm test, tsc, vite build, guard, forge test), the real-transaction dust tests, the browser judge walk, and the push or merge of rescue/p1. None of them ran because the bundle did not match.
 - **.env:** key names were listed. Values were not printed.
 - **Not signed.** The acceptance gate is not green.
+
+- **Blockaid report filed (user-approved, PQTABS method):** `POST https://report.blockaid.io/api/submitDappForm` for `https://beacon-arc-one.vercel.app`, wallet field `Rabby`, classification Benign, transaction `0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab` (verified send), email empty. Result: HTTP 200 `OK`. A 200 is receipt only. The Rabby alert was not retested and is not cleared; the PQTABS history records the same limit.

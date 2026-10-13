@@ -315,3 +315,16 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **e2e:** 9 of 10 passed. `the vault desk is the USDC journey` failed because it looks for heading `8. Activity`; the page exposes `Activity` only, the number is `aria-hidden`.
 - **Gaps:** `/flow/vault` has no "Read-only quote" banner and no disabled "Swaps stay off" button. Those strings are in `ActionCards.tsx`, which the vault page does not render. The vault page's quote is a direct V2 router read. The flow chip's swap answer is also V2. The judge quickstart says v3.
 - **Not signed.** The acceptance gate is not green.
+
+## 2026-10-13 — Session log: agents copy, flow reads, rescue deploy, verification
+
+- **Agents page:** committed `15680e8`. Vercel `dpl_HSZUF431788gCVSDA7gSNTBR4LwZ`. The page names `verify` and says revoke without a bearer returns 401. `/flow/mcp` initialize with no bearer returned `Bearer required.`
+- **Flow chips read Arc:** committed `0f589ec`. Vercel `dpl_9XsgV3UR8dzGUvNAGDhnh4wudy3N`. The swap answer reads `getAmountsOut` and vault bytecode selectors. The CCTP answer reads `localDomain()`. The cap answer keeps the reverted over-cap receipt status. `apps/web/src/lib/arcFlow.test.ts` passed 3 of 3 after one fix. Browser at block 25475778: 8276 EURC base units, router 21902 bytes, vault 5047 bytes, executeSend selector present, swapExactTokensForTokens absent.
+- **Bundle:** the first download of `beacon-rescue.bundle` was corrupt: 12932162 bytes, SHA-256 17B3E4101EF79692A90D5D03DD782861FD1CF84D37D07F65FFA1650328B0B324. It was deleted. The re-attached file matched 7115485 bytes, SHA-256 43108D0C5D26CF58EC051B9BF9D208B0CB8163B30BBED63FF18430C6AA007AAF. It verified and fetched as `rescue/p0` at `c67d0c6`. The bundle stays untracked and was never committed.
+- **Push and merge:** `rescue/p0` pushed. Safety scan of the branch diff and `.env.example` found no secret values. `main` merged `--no-ff` and pushed as `ea60339`.
+- **Render:** `dep-db78l36gekts73djdqkg` live on `ea60339`. `/ready` 200, chainId 5042. `/v1/quote/swap?amount=1000000` returned `uniswap-v3`, amountOut 892767, executable false.
+- **Vercel:** no git-triggered deploy appeared. `dpl_FeiFmYzGNMXfJZZe4WEjXVDQ5Wzv` was deployed from `main` with the CLI. READY.
+- **Browser:** the homepage proof section and the verify page's green cross-check panel render. The vault page has no "Read-only quote" banner and no "Swaps stay off" button. It shows the V2 router read.
+- **e2e:** 9 of 10 passed. Failure: `the vault desk is the USDC journey` expects heading `8. Activity`. The number is `aria-hidden`.
+- **On-chain at block 25804266:** vault 50000 base units, nonce 2, policy v1, not paused. `0xa04c…` succeeded. `0xe53e…` reverted. Registry row for `0xcd92…` exists with recipient `0xCb2E…`, 10000 base units, nonce 1.
+- **Not done:** the judge quickstart step 4 is partly wrong. The flow swap chip is V2, not v3. The three gaps are not fixed; diffs need approval first. Nothing was signed. The acceptance gate is not green.

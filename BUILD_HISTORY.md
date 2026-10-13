@@ -304,3 +304,14 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **Deliverables from evaluation:** `~/workspace/your_files/beacon-arc-evaluation-report.md`, `~/workspace/your_files/beacon-arc-cursor-plan.md`; raw agent reports in `~/workspace/beacon-review/`.
 - **P0 order:** P0-1 verify false-negative fix → P0-2 homepage proof section → P0-3 v3 swap quote with startup squat guard → P0-4 swap card de-mislabel → P0-5 legacy-language scrub + executor label fix → P0-6 receipt CSV export → P0-7 owner re-grant + one real third-party send (owner-run) → P0-8 JUDGE-QUICKSTART. Then P1 (CCTP attestation tracker UI, cleanup). P2 is post-deadline.
 - **Not done yet:** everything in the P0 list. The acceptance gate is not green.
+
+## 2026-10-13 — Rescue branch merged to main and deployed
+
+- **Bundle:** the first download was corrupt (12932162 bytes). The re-attached file is 7115485 bytes, SHA-256 43108D0C5D26CF58EC051B9BF9D208B0CB8163B30BBED63FF18430C6AA007AAF. It verified and fetched as `rescue/p0` at `c67d0c6`.
+- **Push:** `rescue/p0` pushed. `main` merged with `--no-ff` and pushed as `ea60339`.
+- **Render:** `dep-db78l36gekts73djdqkg` live on `ea60339`. `/ready` returned 200, chainId 5042. `/v1/quote/swap?amount=1000000` returned `uniswap-v3`, amountOut `892767`, executable false.
+- **Vercel:** no git-triggered deploy appeared. `dpl_FeiFmYzGNMXfJZZe4WEjXVDQ5Wzv` was deployed from `main` with the CLI. READY, aliased to https://beacon-arc-one.vercel.app.
+- **Browser:** the homepage shows the Live on Arc mainnet section, the stat strip `0.02 USDC`, `2 executions`, `1 refusal`, and three transaction cards. `/verify/0xcd92…` shows a green "Independent RPC agrees with the API." panel.
+- **e2e:** 9 of 10 passed. `the vault desk is the USDC journey` failed because it looks for heading `8. Activity`; the page exposes `Activity` only, the number is `aria-hidden`.
+- **Gaps:** `/flow/vault` has no "Read-only quote" banner and no disabled "Swaps stay off" button. Those strings are in `ActionCards.tsx`, which the vault page does not render. The vault page's quote is a direct V2 router read. The flow chip's swap answer is also V2. The judge quickstart says v3.
+- **Not signed.** The acceptance gate is not green.

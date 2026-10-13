@@ -411,3 +411,10 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - V2 live: vault 0x8901AAa87035b80c70B1636697DaE899Ef67c6fe, real swap tx 0xf4c87b61..., real send tx 0x0b45709e..., bridge chain-gated (honest).
 - MetaMask browser setup abandoned (automation cannot open extension UI); judge journey pivoted to read-only (no wallet needed). Cursor will test in user's Chrome per prompt requirements.
 - Ready for commit as goat-dev8.
+
+## 2026-10-14 — DELIVERED: bundle + Cursor prompt
+
+- Commit dd4a170 (goat-dev8) on rescue/p1: 50 files, all gates green.
+- Bundle: /home/hatch/workspace/beacon-rescue-p1.bundle (6.9M, sha256 be51366f2ec0bc5290c4380dfb19879deadb7a96789684b39612fcb37c52b615). Verified by clone.
+- Cursor prompt: ~/workspace/your_files/beacon-cursor-prompt.md (merge first, real-tx tests, local gates, user's Chrome for browser tests, push/deploy/verify).
+- Local dev servers (API :8787, web :5173) left running for inspection; stop with: pkill -f "apps/api/src/index.mjs"; pkill -f "vite --port 5173".

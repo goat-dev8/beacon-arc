@@ -328,3 +328,12 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **e2e:** 9 of 10 passed. Failure: `the vault desk is the USDC journey` expects heading `8. Activity`. The number is `aria-hidden`.
 - **On-chain at block 25804266:** vault 50000 base units, nonce 2, policy v1, not paused. `0xa04c…` succeeded. `0xe53e…` reverted. Registry row for `0xcd92…` exists with recipient `0xCb2E…`, 10000 base units, nonce 1.
 - **Not done:** the judge quickstart step 4 is partly wrong. The flow swap chip is V2, not v3. The three gaps are not fixed; diffs need approval first. Nothing was signed. The acceptance gate is not green.
+
+## 2026-10-14 — Wallet warning research, p1 bundle check stopped
+
+- **Wallet warning:** the screenshot is Rabby. The red "Request from" triangle on `beacon-arc-one.vercel.app` and the "Review alert" button are Rabby's domain-trust signal. Rabby's own docs and public reports say the signal often hits new, low-popularity, and shared hosting domains such as `*.vercel.app`. Public MetaMask issues show the same false positive for other Vercel dApps. Routes that exist: report the exact domain to Rabby support (support@rabby.io or bd@rabby.io) with the explorer proof and the Sourcify links, and move to a dedicated custom domain. The PQTABS guide records a Blockaid report that returned 200 for MetaMask, and it says that report does not prove the alert is cleared. No code change was made. Nothing was signed, approved, dismissed, or clicked in the wallet.
+- **PQTABS reference:** `D:\route\arc\PQTABS\guide.md` and `HISTORY.md` lines 408 to 427. Same pattern: origin flagged, tx checked on the explorer, benign report filed, and the alert not verified as cleared.
+- **p1 bundle:** `beacon-rescue-p1.bundle` is 13044430 bytes, SHA-256 `F1639E184850E17EFE73B54DA84981164107DA9F45882CEAA2571FB535D15174`. The guide expects about 6.9 MB and SHA-256 `be51366f...`. Head `dd4a170ce65e514582c817b1cab4ea521b0e2298 refs/heads/rescue/p1` and `git bundle verify` pass. The file did not match the guide's checksum, so it was not fetched. The same size and hash mismatch pattern happened to the first rescue bundle.
+- **Not run:** gates (npm test, tsc, vite build, guard, forge test), the real-transaction dust tests, the browser judge walk, and the push or merge of rescue/p1. None of them ran because the bundle did not match.
+- **.env:** key names were listed. Values were not printed.
+- **Not signed.** The acceptance gate is not green.

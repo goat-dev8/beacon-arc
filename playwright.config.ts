@@ -16,14 +16,18 @@ export default defineConfig({
           },
         }
       : {}),
-    // W7: outbound traffic in this sandbox goes through an egress proxy;
-    // Chromium does not read proxy env vars, so pass it explicitly.
-    // The proxy accepts unauthenticated CONNECT; strip any embedded
-    // credentials because Chromium mishandles them.
-    ...((() => {
-      const raw = process.env.HTTPS_PROXY || process.env.https_proxy || "";
-      const m = raw.match(/^https?:\/\/([^:/@]+)(:\d+)?/);
-      return m ? { proxy: { server: `http://${m[1]}${m[2] || ""}` } } : {};
-    })()),
+    // W7: outbound traffic in this sandbox goes through an egress proxy that
+    // Chromium cannot use directly. A local relay (node /tmp/relay-proxy.mjs
+    // on 127.0.0.1:18080) forwards to it. Set PLAYWRIGHT_PROXY_SERVER to use
+    // a proxy; unset => direct connection (normal CI/dev behavior).
+    ...(process.env.PLAYWRIGHT_PROXY_SERVER
+      ? { proxy: { server: process.env.PLAYWRIGHT_PROXY_SERVER } }
+      : {}),
+    // W7: the sandbox egress proxy MITMs TLS with a private CA; the test
+    // browser must ignore cert errors (curl/node trust the system store).
+    // Only applied when the sandbox proxy env is in use.
+    ...(process.env.PLAYWRIGHT_PROXY_SERVER
+      ? { ignoreHTTPSErrors: true }
+      : {}),
   },
 });

@@ -8,7 +8,7 @@ const STEPS = [
   {
     id: "deposit",
     title: "Deposit",
-    body: "Fund Beacon Safe once. Beacon spends from that balance under your rules.",
+    body: "Fund the Arc vault once. Beacon spends from that balance under your rules.",
     icon: Landmark,
     hint: "Step 1 of 4",
   },

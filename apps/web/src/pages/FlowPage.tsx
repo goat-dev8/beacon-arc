@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import { answerLiveFlow } from "@/lib/arcApi";
-import { openZeroGFaucet } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { ChatColumn } from "@/components/flow/ChatColumn";
 import { HistoryRail } from "@/components/flow/HistoryRail";
@@ -287,7 +286,6 @@ export function FlowPage() {
           settledServiceIds={settledServiceIds}
           executionStates={executionStates}
           onExecutionStateChange={onExecutionStateChange}
-          onMint={() => openZeroGFaucet()}
           onBalancesRefresh={() => {
             if (wallet) void qc.invalidateQueries({ queryKey: ["balances", wallet] });
           }}

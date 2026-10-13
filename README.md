@@ -19,3 +19,14 @@ Deployed on Arc mainnet:
 | Vault | `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6` |
 
 The value-moving send is [0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab](https://explorer.arc.io/tx/0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab) (0.01 USDC, status success). The over-cap denial is [0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83](https://explorer.arc.io/tx/0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83) (status reverted, `OverCap`).
+
+## Scope — what this build does NOT do
+
+- **Swaps** — could quote, would not trade. The deployed vault has no swap function; the swap chip returns a live Uniswap v3 quote and states the vault will not trade.
+- **CCTP / bridging** — CCTP is live on Arc (domain 26); this vault does not bridge. Owner policy cannot protect money once it leaves the chain.
+- **x402 settlement** — no Circle facilitator key is configured. No fake settlement, no trial-mode theater.
+- **Post-quantum wallets** — the PQ precompile is not a wallet. Beacon's threat model is trickery (prompt injection, policy bypass), not quantum cryptanalysis.
+- **Private transfers** — Arc's Privacy Sector is not on mainnet. Beacon reports only what the public chain shows.
+- **ERC-8004 registration** — identity is a registry's job. Beacon trusts the owner's on-chain grant — the grant is the identity.
+
+A 3-minute, wallet-free judge path is in `JUDGE-QUICKSTART.md`.

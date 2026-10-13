@@ -52,6 +52,22 @@
     font: inherit;
   }
 
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .product-shell :focus-visible {
+    outline-color: var(--p-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
   /*
    * Product OS shell tokens.
    * Linear surface ladder (DESIGN.md) mapped onto --p-*; chromatic accent stays Beacon emerald.

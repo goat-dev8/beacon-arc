@@ -1,9 +1,10 @@
 import Fastify from "fastify";
-import { verifyMessage } from "viem";
+import { isAddress, verifyMessage } from "viem";
 import { CAPABILITIES, CHAIN_ID, FACTORY } from "./constants.mjs";
 import { actionHash, recoverAgent, sendTypedData } from "./eip712.mjs";
 import { preflightSend } from "./preflight.mjs";
-import { factoryHasCode, quoteV2, readChainId, readReceipt, readRecipient, readVault } from "./chain.mjs";
+import { factoryHasCode, quoteV2, quoteV3, readChainId, readReceipt, readRecipient, readRecordedEvents, readVault, verifyQuoterPinned } from "./chain.mjs";
+import { V3_USDC_EURC_500, V3_FEE, V3_QUOTER, V3_ROUTER02 } from "./constants.mjs";
 import { newBearer } from "./store.mjs";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -35,28 +36,109 @@ export function createServer(deps) {
 
   app.get("/v1/capabilities", async () => CAPABILITIES);
 
+  // Startup squat-guard for the pinned v3 quoter. Runs once, result cached;
+  // the quote endpoint refuses to serve while the pin is not verified.
+  let quoterPinPromise = null;
+  async function quoterPin() {
+    if (!quoterPinPromise) {
+      quoterPinPromise = (async () => {
+        try {
+          const pin = await (deps.verifyQuoter ?? verifyQuoterPinned)(deps.client);
+          console.log(`[quoter] pin check ${pin.ok ? "OK" : "FAIL"} factory=${pin.factory} tickSpacing=${pin.tickSpacing} pool=${pin.pool}`);
+          return pin;
+        } catch (error) {
+          console.log(`[quoter] pin check error: ${error.message}`);
+          return { ok: false, reason: error.message };
+        }
+      })();
+    }
+    return quoterPinPromise;
+  }
+
   app.get("/v1/quote/swap", async (req, reply) => {
     const amount = String(req.query?.amount ?? "10000");
     if (!/^\d+$/.test(amount) || BigInt(amount) === 0n) {
       return reply.code(400).send({ error: { code: "amount", message: "Amount must be a positive base-unit integer." } });
     }
+    const pin = await quoterPin();
+    if (!pin.ok) {
+      return reply.code(503).send({
+        status: "UNAVAILABLE",
+        venue: "uniswap-v3",
+        amountIn: amount,
+        executable: false,
+        reason: `quoter not pinned: ${pin.reason}`,
+      });
+    }
     try {
-      const quote = await (deps.quoteSwap ?? quoteV2)(deps.client, amount);
+      const quote = await (deps.quoteSwap ?? quoteV3)(deps.client, amount);
       if (!quote.amountOut || quote.amountOut === "0") {
-        return { status: "NO_ROUTE", venue: "uniswap-v2", amountIn: amount, executable: false, reason: "The router returned no output." };
+        return { status: "NO_ROUTE", venue: "uniswap-v3", amountIn: amount, executable: false, reason: "The quoter returned no output." };
       }
       return {
         status: "quoted",
-        venue: "uniswap-v2",
+        venue: "uniswap-v3",
+        quoter: V3_QUOTER,
+        router: V3_ROUTER02,
+        pool: quote.pool ?? V3_USDC_EURC_500,
+        fee: quote.fee ?? V3_FEE,
         tokenIn: "0x3600000000000000000000000000000000000000",
         tokenOut: "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
         amountIn: quote.amountIn,
         amountOut: quote.amountOut,
         executable: false,
-        reason: "The live vault has no swap function. This router read is not a trade.",
+        reason: "The live vault has no swap function. This quoter read is not a trade.",
       };
     } catch (error) {
-      return { status: "NO_ROUTE", venue: "uniswap-v2", amountIn: amount, executable: false, reason: error.message };
+      try {
+        const fallback = await (deps.quoteSwapV2 ?? quoteV2)(deps.client, amount);
+        if (!fallback.amountOut || fallback.amountOut === "0") {
+          return { status: "NO_ROUTE", venue: "uniswap-v2", amountIn: amount, executable: false, reason: "No route on either venue." };
+        }
+        return {
+          status: "quoted",
+          venue: "uniswap-v2",
+          indicative: true,
+          tokenIn: "0x3600000000000000000000000000000000000000",
+          tokenOut: "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
+          amountIn: fallback.amountIn,
+          amountOut: fallback.amountOut,
+          executable: false,
+          reason: `The v3 quoter failed (${error.message}). This v2 router read is indicative only and is not a trade.`,
+        };
+      } catch {
+        return { status: "NO_ROUTE", venue: "uniswap-v3", amountIn: amount, executable: false, reason: error.message };
+      }
+    }
+  });
+
+  app.get("/v1/receipts/export", async (req, reply) => {
+    const owner = await sessionOwner(deps, req);
+    if (!owner) return reply.code(401).send({ error: { code: "session", message: "Sign in again." } });
+    const format = String(req.query?.format ?? "csv");
+    if (format !== "csv") {
+      return reply.code(400).send({ error: { code: "format", message: "Only format=csv is supported." } });
+    }
+    const vaultFilter = req.query?.vault ? String(req.query.vault) : undefined;
+    const fromBlock = req.query?.fromBlock ? String(req.query.fromBlock) : undefined;
+    const toBlock = req.query?.toBlock ? String(req.query.toBlock) : undefined;
+    if (fromBlock !== undefined && !/^\d+$/.test(fromBlock)) {
+      return reply.code(400).send({ error: { code: "fromBlock", message: "fromBlock must be a block number." } });
+    }
+    if (toBlock !== undefined && !/^\d+$/.test(toBlock)) {
+      return reply.code(400).send({ error: { code: "toBlock", message: "toBlock must be a block number." } });
+    }
+    try {
+      const events = await (deps.readRecordedEvents ?? readRecordedEvents)(deps.client, { vault: vaultFilter, fromBlock, toBlock });
+      const header = "actionHash,vault,agent,recipient,amount,nonce,blockNumber,txHash";
+      const lines = events.map((e) =>
+        [e.actionHash, e.vault, e.agent, e.recipient, e.amount, e.nonce, e.blockNumber, e.txHash].map(csvCell).join(","),
+      );
+      reply.header("content-type", "text/csv; charset=utf-8");
+      reply.header("content-disposition", 'attachment; filename="beacon-receipts.csv"');
+      return [header, ...lines].join("\n") + "\n";
+    } catch (error) {
+      return reply.code(502).send({ error: { code: "export", message: `Receipt export failed: ${error.message}` } });
     }
   });
 
@@ -94,6 +176,9 @@ export function createServer(deps) {
 
   app.post("/v1/auth/verify", async (req, reply) => {
     const { address, signature } = req.body ?? {};
+    if (!isAddress(address ?? "")) {
+      return reply.code(401).send({ error: { code: "address", message: "Address is invalid." } });
+    }
     const nonce = await deps.store.takeChallenge(address ?? "");
     if (!nonce) return reply.code(401).send({ error: { code: "challenge", message: "Challenge expired." } });
     const message = `Beacon Arc login ${nonce}`;
@@ -124,6 +209,10 @@ export function createServer(deps) {
     if (!owner) return reply.code(401).send({ error: { code: "session", message: "Sign in again." } });
     const vault = await readers.readVault(deps.client, owner);
     if (!vault) return reply.code(404).send({ error: { code: "no_vault", message: "This owner has no vault." } });
+    const agent = req.body?.agent;
+    if (!isAddress(agent ?? "")) {
+      return reply.code(400).send({ error: { code: "agent", message: "Agent must be a valid address." } });
+    }
     const max = BigInt(req.body?.maxPerTx ?? vault.maxPerTx);
     if (max > vault.maxPerTx) {
       return reply.code(400).send({ error: { code: "over_cap", message: "Grant cap cannot exceed the vault policy." } });
@@ -132,7 +221,7 @@ export function createServer(deps) {
     await deps.store.saveGrant({
       id: newBearer(),
       vault: vault.vault,
-      agent: req.body.agent,
+      agent,
       bearer,
       scopes: "send",
       maxPerTx: max,
@@ -359,6 +448,11 @@ async function handleMcp(deps, readers, req, reply) {
     return toolResult(id, { error: "unknown_tool" });
   }
   return reply.code(400).send({ jsonrpc: "2.0", id, error: { code: -32601, message: "Method not found." } });
+}
+
+function csvCell(value) {
+  const s = String(value ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 function toolResult(id, data) {

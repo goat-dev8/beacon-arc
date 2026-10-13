@@ -25,7 +25,6 @@ type Props = {
   settledServiceIds: Set<string>;
   executionStates: Record<string, CardExecutionState>;
   onExecutionStateChange: (key: string, state: CardExecutionState) => void;
-  onMint: () => void;
   onBalancesRefresh: () => void;
   onTxConfirmed: (info: {
     kind: "swap" | "bridge" | "proof";
@@ -64,7 +63,6 @@ export function ChatColumn(props: Props) {
         executionStates={props.executionStates}
         onExecutionStateChange={props.onExecutionStateChange}
         onConnect={props.onConnect}
-        onMint={props.onMint}
         onBalancesRefresh={props.onBalancesRefresh}
         onTxConfirmed={props.onTxConfirmed}
         onQuickReply={props.onQuickReply}

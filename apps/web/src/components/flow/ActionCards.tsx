@@ -123,7 +123,6 @@ export function ActionCard({
   savedExec?: CardExecutionState;
   onExecutionStateChange: (key: string, state: CardExecutionState) => void;
   onConnect: () => void;
-  onMint: () => void;
   onPaidResend: (payment: Record<string, unknown>, meta: PaidResendMeta) => void;
   onBalancesRefresh: () => void;
   onTxConfirmed?: (info: {
@@ -248,8 +247,8 @@ export function ActionCard({
                 ) : null}
                 <p className="mt-1 text-[11px] text-amber-200/90">
                   {r.executableFromSafe
-                    ? "Executable from Beacon Safe if policy ALLOW."
-                    : "Quote only — Safe cannot execute this direction."}
+                    ? "Executable from the Arc vault if policy ALLOW."
+                    : "Quote only — the vault cannot execute this direction."}
                 </p>
                 <button
                   type="button"
@@ -313,7 +312,7 @@ export function ActionCard({
           })}
         </ul>
         <p className="mt-3 text-xs text-amber-200/90">
-          Beacon Safe cannot sign a source-chain tx. Ask for a live quote in the direction you want: “Bridge 1 USDC from Base to USDC” or “Bridge 0.3 USDC to USDC on Base”.
+          The Arc vault cannot sign a source-chain tx. Ask for a live quote in the direction you want: “Bridge 1 USDC from Base to USDC” or “Bridge 0.3 USDC to USDC on Base”.
         </p>
       </div>
     );
@@ -749,7 +748,7 @@ export function ActionCard({
             rel="noreferrer"
             className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)]"
           >
-            Faucet
+            View on Arc explorer
           </a>
         </div>
       </div>
@@ -762,6 +761,9 @@ export function ActionCard({
     const est = String(card.estimatedOut ?? card.estimatedFxrp);
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] shadow-[var(--p-shadow)] p-4">
+        <p className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90">
+          Read-only quote. The live vault has no swap function — Beacon will not trade.
+        </p>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
           <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
@@ -794,10 +796,11 @@ export function ActionCard({
         <FccHardwareStrip card={card} />
         <button
           type="button"
-          onClick={() => onQuickReply("confirm")}
-          className="mt-4 rounded-full bg-signal px-5 py-2 text-sm font-medium text-ink"
+          disabled
+          title="The live vault has no swap function. This quote can never become a trade."
+          className="mt-4 cursor-not-allowed rounded-full bg-[var(--p-border)] px-5 py-2 text-sm font-medium text-[var(--p-muted)] ring-1 ring-[var(--p-border-strong)]"
         >
-          Confirm swap
+          Swaps stay off — the vault will not trade
         </button>
       </div>
     );
@@ -972,13 +975,13 @@ export function ActionCard({
             switch to Mainnet for Flow swaps.
           </p>
           <p className="mt-2 text-xs text-[var(--p-muted)]">
-            Fund Beacon Safe for USDC→USDC.e agent execution, or use another Arc rail.
+            Fund the Arc vault for USDC→USDC.e agent execution, or use another Arc rail.
           </p>
           <a
             href="/flow/security"
             className="mt-3 inline-flex rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink"
           >
-            Open Beacon Safe
+            Open Arc vault
           </a>
         </div>
       );
@@ -988,7 +991,7 @@ export function ActionCard({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
           <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
-            {String(card.ogPrimitive ?? (isSafe ? "Beacon Safe" : "swap"))}
+            {String(card.ogPrimitive ?? (isSafe ? "Arc vault" : "swap"))}
           </span>
         </div>
         <p className="mt-2 text-sm text-[var(--p-fg)]/80">
@@ -1069,7 +1072,7 @@ export function ActionCard({
             {card.needsHuman === true && card.riskTier === "CONFIRM" ? (
               <label className="mt-2 flex items-center gap-2 text-xs text-[var(--p-fg)]">
                 <input type="checkbox" checked={riskAck} onChange={(e) => setRiskAck(e.target.checked)} />
-                I confirm this is an intended Safe spend
+                I confirm this is an intended vault spend
               </label>
             ) : null}
           </div>
@@ -1080,7 +1083,7 @@ export function ActionCard({
         <FccHardwareStrip card={card} />
         {isSafe ? (
           <p className="mt-2 text-xs text-signal">
-            Agent executor spends from Beacon Safe on Arc — no MetaMask, no Mainnet switch.
+            Agent executor spends from the Arc vault on Arc — no MetaMask, no Mainnet switch.
           </p>
         ) : card.requiresChainSwitch ? (
           <p className="mt-2 text-xs text-signal">MetaMask will switch to Arc (chain 5042) before signing.</p>
@@ -1124,7 +1127,7 @@ export function ActionCard({
             rel="noreferrer"
             className="rounded-full border border-[var(--p-border)] px-4 py-2 text-sm text-[var(--p-muted)]"
           >
-            Arc faucet
+            View on Arc explorer
           </a>
         </div>
         {quoteStale ? (
@@ -1138,7 +1141,7 @@ export function ActionCard({
                 to="/flow/security"
                 className="inline-flex rounded-full border border-[var(--p-border-strong)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-[var(--p-accent)]/45 hover:text-[var(--p-fg)]"
               >
-                Open Safe → App limits
+                Open vault → App limits
               </Link>
             ) : null}
           </div>
@@ -1468,7 +1471,7 @@ export function ActionCard({
         <p className="mt-1 text-sm text-[var(--p-muted)]">{summary}</p>
         {inventoryIssue ? (
           <p className="mt-2 text-xs text-[var(--p-muted)]">
-            The wallet and Safe are connected. Desk USDC.e liquidity—not your connection—is blocking
+            The wallet and vault are connected. Desk USDC.e liquidity—not your connection—is blocking
             this quote.
           </p>
         ) : null}
@@ -1490,7 +1493,7 @@ export function ActionCard({
               to={href}
               className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink"
             >
-              Open Beacon Safe
+              Open Arc vault
             </Link>
           ) : (
             <button
@@ -1508,7 +1511,7 @@ export function ActionCard({
               rel="noreferrer"
               className="rounded-full border border-[var(--p-border-strong)] px-4 py-2 text-sm text-[var(--p-muted)]"
             >
-              Faucet
+              View on Arc explorer
             </a>
           ) : null}
         </div>

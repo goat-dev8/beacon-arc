@@ -15,13 +15,10 @@ if (process.env.DATABASE_URL) {
     await db.migrate();
     store = db;
   } catch (error) {
+    // Fail closed: a broken migration must never silently reset to an empty
+    // store (all sessions and grants would vanish). Exit non-zero instead.
     console.error(JSON.stringify({ event: "db_migrate_failed", code: error.code ?? "unknown" }));
-    store = {
-      ...memoryStore(),
-      async ping() {
-        return false;
-      },
-    };
+    process.exit(1);
   }
 }
 

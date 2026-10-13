@@ -8,6 +8,7 @@ import {
   ContractsSection,
   FinalCta,
   Footer,
+  LiveProofSection,
   ManifestoQuote,
   QualityBand,
   QualitySection,
@@ -25,6 +26,7 @@ export function LandingPage() {
       <StoryHowItWorks />
       <ArchitectureStrip />
       <ProtectionStory />
+      <LiveProofSection />
       <QualityBand />
       <QualitySection />
       <WhyZeroGSection />

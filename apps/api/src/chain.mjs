@@ -1,6 +1,19 @@
-import { createPublicClient, createWalletClient, http, encodeFunctionData } from "viem";
+import { createPublicClient, createWalletClient, http, encodeFunctionData, parseAbiItem } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { ARC_USDC, CHAIN_ID, FACTORY, REGISTRY } from "./constants.mjs";
+import {
+  ARC_USDC,
+  CHAIN_ID,
+  FACTORY,
+  REGISTRY,
+  REGISTRY_DEPLOY_BLOCK,
+  V3_FACTORY,
+  V3_ROUTER02,
+  V3_QUOTER,
+  V3_FEE,
+  V3_USDC_EURC_500,
+} from "./constants.mjs";
+
+export { V3_FACTORY, V3_ROUTER02, V3_QUOTER, V3_FEE, V3_USDC_EURC_500, REGISTRY_DEPLOY_BLOCK };
 
 export const V2_ROUTER = "0x1f7d7550b1b028f7571e69a784071f0205fd2efa";
 export const ARC_EURC = "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1";
@@ -145,6 +158,139 @@ export async function quoteV2(client, amountIn) {
     args: [BigInt(amountIn), [ARC_USDC, ARC_EURC]],
   });
   return { amountIn: amounts[0].toString(), amountOut: amounts[1].toString() };
+}
+
+// --- Uniswap v3 pinned quoter -------------------------------------------------
+
+const v3FactoryAbi = [
+  { type: "function", name: "feeAmountTickSpacing", stateMutability: "view", inputs: [{ name: "fee", type: "uint24" }], outputs: [{ name: "tickSpacing", type: "int24" }] },
+  { type: "function", name: "getPool", stateMutability: "view", inputs: [{ name: "tokenA", type: "address" }, { name: "tokenB", type: "address" }, { name: "fee", type: "uint24" }], outputs: [{ name: "pool", type: "address" }] },
+];
+const v3RouterAbi = [
+  { type: "function", name: "factory", stateMutability: "view", inputs: [], outputs: [{ name: "factory", type: "address" }] },
+];
+const quoterV2Abi = [
+  {
+    type: "function",
+    name: "quoteExactInputSingle",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "params", type: "tuple", components: [
+      { name: "tokenIn", type: "address" },
+      { name: "tokenOut", type: "address" },
+      { name: "amountIn", type: "uint256" },
+      { name: "fee", type: "uint24" },
+      { name: "sqrtPriceLimitX96", type: "uint160" },
+    ] }],
+    outputs: [
+      { name: "amountOut", type: "uint256" },
+      { name: "sqrtPriceX96After", type: "uint160" },
+      { name: "initializedTicksCrossed", type: "uint32" },
+      { name: "gasEstimate", type: "uint256" },
+    ],
+  },
+];
+
+// Squat guard: the real v3 deployment is pinned. Rejects a squatted or
+// replaced router/factory before any quote is served.
+export async function verifyQuoterPinned(client) {
+  const [factory, tickSpacing] = await Promise.all([
+    client.readContract({ address: V3_ROUTER02, abi: v3RouterAbi, functionName: "factory" }),
+    client.readContract({ address: V3_FACTORY, abi: v3FactoryAbi, functionName: "feeAmountTickSpacing", args: [3000] }),
+  ]);
+  const pool = await client.readContract({
+    address: V3_FACTORY, abi: v3FactoryAbi, functionName: "getPool", args: [ARC_USDC, ARC_EURC, V3_FEE],
+  });
+  const ok =
+    factory.toLowerCase() === V3_FACTORY.toLowerCase() &&
+    Number(tickSpacing) === 60 &&
+    pool.toLowerCase() === V3_USDC_EURC_500.toLowerCase();
+  return {
+    ok,
+    factory,
+    tickSpacing: Number(tickSpacing),
+    pool,
+    reason: ok ? "pinned" : "router.factory(), feeAmountTickSpacing(3000), or USDC/EURC pool mismatch",
+  };
+}
+
+// Quote-only. The vault has no swap function, so this never becomes a trade.
+// QuoterV2 returns its quote as normal call data (verified live 2026-10-13:
+// eth_call to quoteExactInputSingle returned ABI-encoded results, so no
+// revert-data parsing is required on the public Arc RPC).
+export async function quoteV3(client, amountIn) {
+  const [amountOut] = await client.readContract({
+    address: V3_QUOTER,
+    abi: quoterV2Abi,
+    functionName: "quoteExactInputSingle",
+    args: [{ tokenIn: ARC_USDC, tokenOut: ARC_EURC, amountIn: BigInt(amountIn), fee: V3_FEE, sqrtPriceLimitX96: 0n }],
+  });
+  return {
+    amountIn: BigInt(amountIn).toString(),
+    amountOut: amountOut.toString(),
+    venue: "uniswap-v3",
+    pool: V3_USDC_EURC_500,
+    fee: V3_FEE,
+  };
+}
+
+// --- Receipt registry event scan ----------------------------------------------
+
+const recordedEvent = parseAbiItem(
+  "event Recorded(bytes32 indexed actionHash, address indexed vault, address agent, address recipient, uint256 amount, uint256 nonce)",
+);
+
+// Public Arc RPC log queries must be paginated to at most 9,999 blocks.
+const LOG_CHUNK = 9999n;
+const MAX_CHUNKS = 150;
+const LOG_CHUNK_DELAY_MS = 750;
+const LOG_CHUNK_RETRIES = 3;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function isRateLimited(error) {
+  const code = error?.code ?? error?.cause?.code;
+  return code === -32005 || /rate limit|too many requests/i.test(error?.shortMessage ?? error?.message ?? "");
+}
+
+async function getLogsChunk(client, args) {
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await client.getLogs(args);
+    } catch (error) {
+      attempt += 1;
+      if (!isRateLimited(error) || attempt > LOG_CHUNK_RETRIES) throw error;
+      await sleep(2000 * 2 ** (attempt - 1));
+    }
+  }
+}
+
+export async function readRecordedEvents(client, { fromBlock = REGISTRY_DEPLOY_BLOCK, toBlock, vault } = {}) {
+  const end = toBlock === undefined ? await client.getBlockNumber() : BigInt(toBlock);
+  const args = vault ? { vault } : undefined;
+  const out = [];
+  let from = BigInt(fromBlock);
+  let chunks = 0;
+  while (from <= end && chunks < MAX_CHUNKS) {
+    const chunkTo = from + LOG_CHUNK > end ? end : from + LOG_CHUNK;
+    const logs = await getLogsChunk(client, { address: REGISTRY, event: recordedEvent, args, fromBlock: from, toBlock: chunkTo });
+    for (const log of logs) {
+      out.push({
+        actionHash: log.args.actionHash,
+        vault: log.args.vault,
+        agent: log.args.agent,
+        recipient: log.args.recipient,
+        amount: log.args.amount.toString(),
+        nonce: log.args.nonce.toString(),
+        blockNumber: log.blockNumber.toString(),
+        txHash: log.transactionHash,
+      });
+    }
+    from = chunkTo + 1n;
+    chunks += 1;
+    if (from <= end && chunks < MAX_CHUNKS) await sleep(LOG_CHUNK_DELAY_MS);
+  }
+  return out;
 }
 
 export async function readReceipt(client, actionHash) {

@@ -164,7 +164,103 @@ const actionClass =
   "inline-flex min-h-11 max-w-full items-center justify-center rounded-full bg-[var(--p-accent)] px-4 py-2.5 text-center text-sm font-semibold leading-snug text-[#062116] disabled:cursor-not-allowed disabled:bg-[#3a4149] disabled:text-[#f7f8f8] disabled:opacity-100 disabled:ring-1 disabled:ring-[#d5dde3]";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2 text-sm text-[var(--p-fg)]";
+  "mt-1 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2 text-sm text-[var(--p-fg)] transition-colors focus:border-[var(--p-accent)] focus:outline-none";
+
+type StepState = "done" | "current" | "locked" | "live";
+
+const STEPS = [
+  { n: 1, title: "Create", hint: "One vault per owner" },
+  { n: 2, title: "Fund", hint: "ERC-20 USDC in" },
+  { n: 3, title: "Session", hint: "12-hour browser login" },
+  { n: 4, title: "Policy", hint: "Caps and window" },
+  { n: 5, title: "Agent", hint: "Allowlist + grant" },
+  { n: 6, title: "Bearer", hint: "API credential" },
+  { n: 7, title: "Send", hint: "Sign and relay" },
+  { n: 8, title: "Activity", hint: "On-chain receipts" },
+] as const;
+
+function StepRail({ states }: { states: StepState[] }) {
+  return (
+    <nav aria-label="Vault setup progress" className="mt-6 overflow-x-auto pb-1">
+      <ol className="flex min-w-[640px] items-stretch gap-1.5">
+        {STEPS.map((s, i) => {
+          const st = states[i];
+          return (
+            <li key={s.n} className="flex-1">
+              <a
+                href={`#step-${s.n}`}
+                aria-current={st === "current" ? "step" : undefined}
+                className={`flex h-full flex-col gap-1 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                  st === "done"
+                    ? "border-[var(--p-accent)]/30 bg-[var(--p-accent-soft)]"
+                    : st === "current"
+                      ? "border-[var(--p-accent)] bg-[var(--p-card)] ring-1 ring-[var(--p-accent)]"
+                      : st === "live"
+                        ? "border-[var(--p-border)] bg-[var(--p-card)]"
+                        : "border-[var(--p-border)] bg-[var(--p-card)] opacity-55"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+                      st === "done"
+                        ? "bg-[var(--p-accent)] text-[#062116]"
+                        : st === "current"
+                          ? "bg-[var(--p-accent)] text-[#062116]"
+                          : st === "live"
+                            ? "bg-[var(--p-accent-soft)] text-[var(--p-accent-text)]"
+                            : "bg-[var(--p-border)] text-[var(--p-muted)]"
+                    }`}
+                  >
+                    {st === "done" ? "✓" : st === "locked" ? "·" : s.n}
+                  </span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--p-fg)]">
+                    {s.title}
+                  </span>
+                </span>
+                <span className="font-mono text-[10px] leading-tight text-[var(--p-muted)]">{s.hint}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+function StepHeader({ n, title, state }: { n: number; title: string; state: StepState }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold ${
+          state === "done"
+            ? "bg-[var(--p-accent)] text-[#062116]"
+            : state === "current"
+              ? "bg-[var(--p-accent)] text-[#062116]"
+              : "bg-[var(--p-border)] text-[var(--p-muted)]"
+        }`}
+      >
+        {state === "done" ? "✓" : String(n).padStart(2, "0")}
+      </span>
+      <h2 className="font-display text-xl">{title}</h2>
+      <span
+        className={`ml-auto rounded-full px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] ${
+          state === "done"
+            ? "bg-[var(--p-accent-soft)] text-[var(--p-accent-text)]"
+            : state === "current"
+              ? "bg-[var(--p-accent)] text-[#062116]"
+              : state === "live"
+                ? "bg-[var(--p-accent-soft)] text-[var(--p-accent-text)]"
+                : "bg-[var(--p-border)] text-[var(--p-muted)]"
+        }`}
+      >
+        {state === "done" ? "Done" : state === "current" ? "Now" : state === "live" ? "Live" : "Locked"}
+      </span>
+    </div>
+  );
+}
 
 export function VaultJourneyPage() {
   const { wallet, connect, connecting } = useProductWallet();
@@ -237,6 +333,22 @@ export function VaultJourneyPage() {
   );
   const grantReady = Boolean(registeredAgent && registeredAgent !== "0x0000000000000000000000000000000000000000" && grantQuery.data?.active);
   const walletIsAgent = Boolean(wallet && grantReady && wallet.toLowerCase() === registeredAgent!.toLowerCase());
+  const stepDone: boolean[] = [
+    Boolean(vault),
+    Boolean(vault && BigInt(vault.usdcBalance) > 0n),
+    Boolean(session),
+    Boolean(vault && vault.policyVersion !== "0"),
+    grantReady,
+    Boolean(bearer),
+    Boolean(proof),
+  ];
+  const currentIdx = stepDone.findIndex((d) => !d);
+  const stepStates: StepState[] = STEPS.map((_, i) => {
+    if (i === 7) return "live";
+    if (stepDone[i]) return "done";
+    if (!wallet || i === currentIdx) return "current";
+    return "locked";
+  });
   const activityQuery = useQuery({
     queryKey: ["arc-activity", vault?.vault],
     enabled: Boolean(vault?.vault),
@@ -298,7 +410,10 @@ export function VaultJourneyPage() {
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Your USDC vault</h1>
       <p className="mt-2 max-w-2xl text-sm text-[var(--p-muted)]">
         One vault per owner. You set the policy. An agent signs the exact send. The executor only relays that signature.
+        Eight steps, in order — each one unlocks the next.
       </p>
+
+      <StepRail states={stepStates} />
 
       {wrongChain && (
         <div className="mt-4 rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm">
@@ -332,9 +447,9 @@ export function VaultJourneyPage() {
         )}
       </section>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-          <h2 className="font-display text-xl">1. Create</h2>
+      <div className="mt-4 grid scroll-mt-24 gap-4 lg:grid-cols-2">
+        <section id="step-1" className="scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+          <StepHeader n={1} title="Create" state={stepStates[0]} />
           <p className="mt-1 text-sm text-[var(--p-muted)]">
             {vault
               ? `This owner already has vault ${vault.vault}. Another create reverts.`
@@ -367,8 +482,8 @@ export function VaultJourneyPage() {
           </button>
         </section>
 
-        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-          <h2 className="font-display text-xl">2. Fund</h2>
+        <section id="step-2" className="scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+          <StepHeader n={2} title="Fund" state={stepStates[1]} />
           <p className="mt-1 text-sm text-[var(--p-muted)]">This is an ERC-20 USDC transfer into the vault. It is the same pool as native USDC. Beacon does not add the two balances.</p>
           <Field label="Amount USDC">
             <input className={inputClass} value={fund} onChange={(e) => setFund(e.target.value)} />
@@ -392,8 +507,8 @@ export function VaultJourneyPage() {
           </button>
         </section>
 
-        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-          <h2 className="font-display text-xl">3. Browser session</h2>
+        <section id="step-3" className="scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+          <StepHeader n={3} title="Browser session" state={stepStates[2]} />
           <p className="mt-1 text-sm text-[var(--p-muted)]">This signature does not move funds. It authorizes this browser for 12 hours. It does not reveal a key. The login challenge expires in 10 minutes.</p>
           <button
             className={`${actionClass} mt-3`}
@@ -411,8 +526,8 @@ export function VaultJourneyPage() {
           </button>
         </section>
 
-        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-          <h2 className="font-display text-xl">4. Policy</h2>
+        <section id="step-4" className="scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+          <StepHeader n={4} title="Policy" state={stepStates[3]} />
           <div className="mt-3 grid gap-3">
             <Field label="Max per send, USDC"><input className={inputClass} value={max} onChange={(e) => setMax(e.target.value)} /></Field>
             <Field label="Window cap, USDC"><input className={inputClass} value={windowCap} onChange={(e) => setWindowCap(e.target.value)} /></Field>
@@ -460,8 +575,8 @@ export function VaultJourneyPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-          <h2 className="font-display text-xl">5. Recipient and agent</h2>
+        <section id="step-5" className="scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+          <StepHeader n={5} title="Recipient and agent" state={stepStates[4]} />
           {grantQuery.data && (
             <p className="mt-2 text-sm text-[var(--p-muted)]">
               {grantReady
@@ -554,8 +669,8 @@ export function VaultJourneyPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-          <h2 className="font-display text-xl">6. MCP bearer</h2>
+        <section id="step-6" className="scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+          <StepHeader n={6} title="MCP bearer" state={stepStates[5]} />
           <p className="mt-1 text-sm text-[var(--p-muted)]">The bearer authenticates the API. It cannot change the signed action. Shown once.</p>
           <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -588,8 +703,8 @@ export function VaultJourneyPage() {
         </section>
       </div>
 
-      <section className="mt-4 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-        <h2 className="font-display text-xl">7. Send</h2>
+      <section id="step-7" className="mt-4 scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+        <StepHeader n={7} title="Send" state={stepStates[6]} />
         <p className="mt-1 text-sm text-[var(--p-muted)]">
           Beacon prepares the exact action. Only the registered agent wallet can sign it. A changed amount, recipient, or deadline will not match the signature, and Arc will not be told it succeeded.
         </p>
@@ -597,10 +712,15 @@ export function VaultJourneyPage() {
           <Field label="Send amount, USDC"><input className={inputClass} value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} /></Field>
           <Field label="Recipient"><input className={inputClass} value={recipient} onChange={(e) => setRecipient(e.target.value)} /></Field>
         </div>
+        {recipient && !isHexAddress(recipient) && (
+          <p className="mt-2 font-mono text-[11px] text-[var(--p-warn)]">
+            Enter a valid 0x recipient address to enable signing.
+          </p>
+        )}
         <button
           className={`${actionClass} mt-3`}
           type="button"
-          disabled={!session || !vault || busy || wrongChain || (grantReady && !walletIsAgent)}
+          disabled={!session || !vault || busy || wrongChain || !isHexAddress(recipient) || (grantReady && !walletIsAgent)}
           onClick={() => run(async () => {
             const who = (agent || wallet) as Address;
             if (who.toLowerCase() !== wallet!.toLowerCase()) {
@@ -648,8 +768,8 @@ export function VaultJourneyPage() {
         )}
       </section>
 
-      <section className="mt-4 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
-        <h2 className="font-display text-xl">8. Activity</h2>
+      <section id="step-8" className="mt-4 scroll-mt-24 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
+        <StepHeader n={8} title="Activity" state={stepStates[7]} />
         <p className="mt-1 text-sm text-[var(--p-muted)]">These rows are Executed logs from the vault’s first blocks and the latest window. A missing log is not shown as a success.</p>
         {activityQuery.isError && (
           <p className="mt-3 text-sm text-red-300">{activityQuery.error instanceof Error ? activityQuery.error.message : "Could not read vault logs."}</p>

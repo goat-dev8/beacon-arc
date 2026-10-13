@@ -17,7 +17,6 @@ type Props = {
   executionStates: Record<string, CardExecutionState>;
   onExecutionStateChange: (key: string, state: CardExecutionState) => void;
   onConnect: () => void;
-  onMint: () => void;
   onBalancesRefresh: () => void;
   onTxConfirmed: (info: {
     kind: "swap" | "bridge" | "proof";
@@ -52,7 +51,6 @@ export function MessageList({
   executionStates,
   onExecutionStateChange,
   onConnect,
-  onMint,
   onBalancesRefresh,
   onTxConfirmed,
   onQuickReply,
@@ -118,7 +116,6 @@ export function MessageList({
                         savedExec={executionStates[cardKey(msg.id, index)]}
                         onExecutionStateChange={onExecutionStateChange}
                         onConnect={onConnect}
-                        onMint={onMint}
                         onBalancesRefresh={onBalancesRefresh}
                         onTxConfirmed={onTxConfirmed}
                         onQuickReply={onQuickReply}

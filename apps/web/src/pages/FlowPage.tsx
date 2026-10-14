@@ -66,7 +66,7 @@ export function FlowPage() {
   function fieldsText(preview: AgentTaskResult) {
     const a = preview.action;
     return [
-      preview.label,
+      preview.label.replaceAll("\u2014", ". ").replaceAll("\u2013", "-"),
       `Agent ${a.agent}`,
       `Recipient ${a.recipient}`,
       `Amount ${a.amount} base units`,

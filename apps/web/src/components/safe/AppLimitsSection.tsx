@@ -79,7 +79,7 @@ export function AppLimitsSection({
         Server notes, not the vault cap
       </h2>
       <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
-        These fields do not move USDC. A send passes only the on-chain cap, window, allowlist, and signature. Swap and image jobs stay off.
+        These fields do not move USDC. A send or swap passes only the on-chain cap, window, allowlist, and signature. Image jobs stay off.
       </p>
 
       {!wallet && (

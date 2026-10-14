@@ -41,7 +41,7 @@ export const ZEROG_STEPS_WALLET: ExecutionStep[] = [
   {
     id: "settle",
     label: "Unavailable rails stay off",
-    detail: "Swap, CCTP, privacy, PQ, and x402 are not executable.",
+    detail: "CCTP, privacy, PQ, and x402 stay off. Send and swap are live.",
     statusKey: "SETTLING",
   },
   {

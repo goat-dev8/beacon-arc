@@ -464,3 +464,13 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - Confirm was calling `eth_chainId` before `personal_sign`. That call never returns in this Chrome, so the signature popup never opened. Login now sends `personal_sign` first and waits 90 seconds.
 - Clicked confirm for 0.001 USDC (1000 base units, recipient `0xCb2E…3Edd`, nonce 3) on the live page. No MetaMask window appeared. After 90 seconds the page said the wallet did not answer. Phantom and the announced MetaMask provider also time out on `eth_chainId`. The extension is not delivering requests, so there is no prompt to approve.
 - The vault page now leads with the balance. In the founder's Chrome that is 0.013 USDC, with the owner line and the four setup steps. Deploy `dpl_4XC7LjfxFNN7kaQQiUX74pQVkVK4`. No new transaction.
+
+## 2026-10-14 — Live send, swap, and over-cap from the founder's Chrome
+
+- MetaMask answered `personal_sign`. The owner confirmed. No wallet button was clicked from this session.
+- Send `0xa80b79d47e760075ac574304a565c1fcfeb98eb33e1f0e77be7fa8984a653fe8` succeeded in block 25858729. Status 1. Vault `0x8901…c6fe`. 1000 base units to `0xCb2E…3Edd`. Receipt `/verify/0x2a67ac481adb62435ddd8f8fd080423c95d50614e143600bd2b2a63d8fd93b0f`.
+- The first swap attempt did not broadcast. The executor had about 0.00238 native and Arc base fee was 20 gwei, which cannot cover a swap. The owner sent 0.02 native to the executor in `0xdd20d06d4a1c7882d568f852c420b704d99d332f3f7e989536489734635ea9fe` (block 25858927, status 1).
+- Swap `0x26e76d540ef603bcfa3208d250986a808f952dc72ddab7d2c66f974329879954` succeeded in block 25859055. Status 1. 1000 USDC base units out, quote 891, floor 882. Vault USDC went from 12000 to 11000. Vault EURC is 5354, which is the previous 4463 plus 891. Receipt `/verify/0xf0b5a4c41141ef6303fc9b044001479ffd486c260159187a4b70ca394598898e`.
+- Over-cap `0x39eb0351531f57b4c8167bc508d066a3d48fa297cdc79eacf1c63fa21756fd03` reverted in block 25859160. Status 0. Zero logs. Vault USDC stayed 11000. Nonce stayed 5.
+- Flow `swap 0.001` previewed nonce 5, quote 891, floor 882, and did not say the vault will not trade. It was not confirmed, because the console swap already broadcast.
+- The Flow greeting no longer says the swap is off. An over-cap result no longer replaces the send receipt. A relay failure is one sentence, not the raw viem body. Deploy `dpl_96c2yEPjtHQWHgTa8KFfMyccYSyk`, aliased to https://beacon-arc-one.vercel.app. `tsc --noEmit` was clean. Contracts were not changed. The API label change is in source and is not on Render yet. The page strips the old dash when it shows the label.

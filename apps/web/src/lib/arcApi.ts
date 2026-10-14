@@ -708,8 +708,18 @@ async function postJson<T>(path: string, body: unknown, token?: string): Promise
   });
   const text = await res.text();
   const data = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(data?.error?.message || text || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(apiErrorText(data, text, res.status));
   return data as T;
+}
+
+function apiErrorText(data: unknown, text: string, status: number): string {
+  const record = data && typeof data === "object" ? data as { error?: { message?: string } | string; message?: string } : {};
+  const nested = record.error && typeof record.error === "object" ? record.error.message : undefined;
+  const raw = nested || (typeof record.message === "string" ? record.message : "") || text || `Request failed (${status})`;
+  if (/insufficient funds/i.test(raw)) return "The executor does not have enough native gas to relay this. Nothing was broadcast.";
+  if (/execution reverted/i.test(raw)) return "The relay stopped before a transaction was sent. The vault rejected the action, or the executor could not pay gas.";
+  if (raw.length > 320) return raw.slice(0, 240).trim();
+  return raw;
 }
 
 export function requestSessionChallenge(address: string) {

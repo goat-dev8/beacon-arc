@@ -393,7 +393,7 @@ async function agentSend(deps, hits, req, reply) {
   if (req.body?.confirm !== true && req.body?.confirm !== "revert") {
     return {
       status: "preview",
-      label: watchRevert ? "this call is built to revert OverCap — no USDC moves" : "real transaction — dust amount",
+      label: watchRevert ? "this call is built to revert OverCap. no USDC moves" : "real transaction. dust amount",
       vault: snapshot.vault,
       action: publicAction(action),
     };
@@ -412,7 +412,7 @@ async function agentSend(deps, hits, req, reply) {
   console.log(JSON.stringify({ event: watchRevert ? "agent_over_cap" : "agent_send", amount: action.amount.toString(), txHash }));
   return {
     status: watchRevert ? "reverted_broadcast" : "submitted",
-    label: "real transaction — dust amount",
+    label: "real transaction. dust amount",
     txHash,
     actionHash: hash,
     verifyUrl: `/verify/${hash}`,
@@ -462,7 +462,7 @@ async function agentSwap(deps, hits, req, reply) {
   };
   const preview = {
     status: "preview",
-    label: "real transaction — dust amount",
+    label: "real transaction. dust amount",
     vault: snapshot.vault,
     quote: { amountIn: gate.amount.toString(), amountOut: String(quote.amountOut), amountOutMin: floor.toString(), venue: "uniswap-v3" },
     action: publicAction(action),

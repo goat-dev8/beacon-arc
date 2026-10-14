@@ -63,7 +63,7 @@ export type FlowConv = {
 export const WELCOME: ChatMsg = {
   id: "welcome",
   role: "system",
-  text: "Beacon is the USDC firewall on Arc. The owner sets the cap and the allowlist. The agent signs the payment. The executor cannot change it. Swap, CCTP, privacy, post-quantum signing, x402, and ERC-8004 are off.",
+  text: "Beacon is the USDC firewall on Arc. The owner sets the cap and the allowlist. The agent signs each send and each swap. The executor cannot change them. CCTP, privacy, post-quantum signing, x402, and ERC-8004 stay off.",
 };
 
 /** Card types that belong to discovery / catalog (not the live execution path). */

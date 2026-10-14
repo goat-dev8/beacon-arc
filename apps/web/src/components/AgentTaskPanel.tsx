@@ -61,6 +61,7 @@ export function AgentTaskPanel({
   const [sendPreview, setSendPreview] = useState<AgentTaskResult | null>(null);
   const [swapPreview, setSwapPreview] = useState<AgentTaskResult | null>(null);
   const [revertArmed, setRevertArmed] = useState(false);
+  const [revertResult, setRevertResult] = useState<AgentTaskResult | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -116,7 +117,7 @@ export function AgentTaskPanel({
 
   return (
     <section className="rounded-2xl border border-[var(--p-accent)]/40 bg-[var(--p-card)] p-5">
-      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-accent-text)]">Real transaction — dust amount</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-accent-text)]">Dust only</p>
       <h2 className="mt-1 font-display text-xl">Task the agent</h2>
       <p className="mt-2 text-sm text-[var(--p-muted)]">
         One vault, {`0x8901…c6fe`}. You set the limits. The agent signs. Confirming broadcasts a real Arc transaction. {ownerHint}
@@ -150,7 +151,7 @@ export function AgentTaskPanel({
               setNote(`Send submitted. Arc tx ${done.txHash}`);
             })}
           >
-            {sendPreview?.txHash ? "Send submitted" : sendPreview ? "Confirm send — real transaction" : "Task the agent to send"}
+            {sendPreview?.txHash ? "Send submitted" : sendPreview ? "Confirm send" : "Task the agent to send"}
           </button>
           <p className="mt-2 text-xs text-[var(--p-muted)]">
             {sendPreview
@@ -178,12 +179,17 @@ export function AgentTaskPanel({
               if (role !== "owner") throw new Error(`Connect the vault owner ${OWNER.slice(0, 6)}…${OWNER.slice(-4)} to watch the revert. Nothing was signed.`);
               const token = session ?? await ensureSession();
               const done = await confirmAgentSend(token, recipient, "10001", true);
-              setSendPreview(done);
+              setRevertResult(done);
               setNote(done.txHash ? `Over-cap broadcast. Open the explorer receipt and confirm status reverted. ${done.txHash}` : "No hash. Not shown as success.");
             })}
           >
             {revertArmed ? "Confirm over-cap revert" : "Watch an over-cap revert"}
           </button>
+          {revertResult?.txHash && (
+            <p className="mt-2 text-sm">
+              <a className="underline" href={revertResult.explorer} target="_blank" rel="noreferrer">Reverted transaction</a>
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm text-[var(--p-muted)]">
@@ -210,7 +216,7 @@ export function AgentTaskPanel({
               setNote(`Swap submitted. Arc tx ${done.txHash}`);
             })}
           >
-            {swapPreview?.txHash ? "Swap submitted" : swapPreview ? "Confirm swap — real transaction" : "Task the agent to swap"}
+            {swapPreview?.txHash ? "Swap submitted" : swapPreview ? "Confirm swap" : "Task the agent to swap"}
           </button>
           <p className="mt-2 text-xs text-[var(--p-muted)]">
             {swapPreview

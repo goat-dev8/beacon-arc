@@ -55,7 +55,7 @@ const STEPS = [
   {
     id: "execute",
     title: "The vault calls USDC",
-    body: "Beacon builds the transfer itself. Swap, CCTP, privacy, post-quantum signing, x402, and ERC-8004 stay off.",
+    body: "The vault sends USDC and can swap USDC to EURC. CCTP, privacy, post-quantum signing, x402, and ERC-8004 stay off.",
     diagram: 4,
   },
   {

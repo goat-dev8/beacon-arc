@@ -36,7 +36,7 @@ const RAILS = [
     id: "off",
     title: "Not in this deploy",
     why: "A missing rail must stay visibly off.",
-    how: "Swap, CCTP, privacy, post-quantum signing, x402, and ERC-8004 do not move USDC.",
+    how: "CCTP, privacy, post-quantum signing, x402, and ERC-8004 do not move USDC. Send and swap do.",
   },
 ] as const;
 

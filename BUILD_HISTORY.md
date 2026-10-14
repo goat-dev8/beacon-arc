@@ -474,3 +474,9 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - Over-cap `0x39eb0351531f57b4c8167bc508d066a3d48fa297cdc79eacf1c63fa21756fd03` reverted in block 25859160. Status 0. Zero logs. Vault USDC stayed 11000. Nonce stayed 5.
 - Flow `swap 0.001` previewed nonce 5, quote 891, floor 882, and did not say the vault will not trade. It was not confirmed, because the console swap already broadcast.
 - The Flow greeting no longer says the swap is off. An over-cap result no longer replaces the send receipt. A relay failure is one sentence, not the raw viem body. Deploy `dpl_96c2yEPjtHQWHgTa8KFfMyccYSyk`, aliased to https://beacon-arc-one.vercel.app. `tsc --noEmit` was clean. Contracts were not changed. The API label change is in source and is not on Render yet. The page strips the old dash when it shows the label.
+
+## 2026-10-14 — Chat history uses Supabase
+
+- The sidebar said "No conversations yet" because the page returned an empty list and never called the database. Supabase already had sessions, grants, and action rows. It had no chat tables.
+- Chats now save under `/v1/chats` for the connected wallet. A new migration creates `flow_conversations` and `flow_messages`. The old `/v1/flow/` routes stay refused.
+- MetaMask "Request from" with Review alert on `beacon-arc-one.vercel.app` matches Blockaid's warning on new `*.vercel.app` origins. The same report exists for other Vercel apps, and the domain is not on MetaMask's static phishing list. No page change clears it. A domain the project owns is the fix. The earlier Blockaid form response was receipt only.

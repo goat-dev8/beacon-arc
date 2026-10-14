@@ -362,6 +362,40 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  listChats: (wallet: string) =>
+    request<{
+      ok: boolean;
+      conversations: Array<{
+        id: string;
+        title: string;
+        agent_id: string;
+        pinned: boolean;
+        updated_at: string;
+        created_at: string;
+        last_message?: string | null;
+      }>;
+    }>(`/v1/chats?wallet=${encodeURIComponent(wallet)}`),
+  createChat: (wallet: string, title: string) =>
+    request<{
+      ok: boolean;
+      conversation: { id: string; title: string; agent_id: string; updated_at: string; created_at: string };
+    }>("/v1/chats", { method: "POST", body: JSON.stringify({ wallet, title }) }),
+  getChat: (id: string, wallet: string) =>
+    request<{
+      ok: boolean;
+      conversation: { id: string; title: string; agent_id: string };
+      messages: Array<{ id: string; role: string; text: string; createdAt: string }>;
+    }>(`/v1/chats/${id}?wallet=${encodeURIComponent(wallet)}`),
+  appendChat: (id: string, wallet: string, messages: Array<{ role: "user" | "assistant"; text: string }>) =>
+    request<{ ok: boolean }>(`/v1/chats/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ wallet, messages }),
+    }),
+  renameChat: (id: string, wallet: string, title: string) =>
+    request<{ ok: boolean }>(`/v1/chats/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ wallet, title }),
+    }),
   listFlowConversations: (wallet: string) =>
     request<{
       ok: boolean;

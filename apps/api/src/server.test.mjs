@@ -567,3 +567,34 @@ test("a missing agent key reports the console unavailable", async () => {
   assert.equal(JSON.parse(status.body).ready, false);
   await app.close();
 });
+
+test("a wallet chat is saved and listed only for that wallet", async () => {
+  const { app } = await boot();
+  const created = await app.inject({
+    method: "POST",
+    url: "/v1/chats",
+    payload: { wallet: owner, title: "swap 0.001" },
+  });
+  assert.equal(created.statusCode, 200);
+  const id = JSON.parse(created.body).conversation.id;
+  const saved = await app.inject({
+    method: "POST",
+    url: `/v1/chats/${id}/messages`,
+    payload: {
+      wallet: owner,
+      messages: [
+        { role: "user", text: "swap 0.001" },
+        { role: "assistant", text: "Quote 891. Floor 882." },
+      ],
+    },
+  });
+  assert.equal(saved.statusCode, 200);
+  const listed = await app.inject({ method: "GET", url: `/v1/chats?wallet=${owner}` });
+  const other = await app.inject({ method: "GET", url: "/v1/chats?wallet=0x412045b7c64d471DE57024f11E080289e6082172" });
+  assert.equal(JSON.parse(listed.body).conversations.length, 1);
+  assert.equal(JSON.parse(listed.body).conversations[0].last_message, "Quote 891. Floor 882.");
+  assert.equal(JSON.parse(other.body).conversations.length, 0);
+  const opened = await app.inject({ method: "GET", url: `/v1/chats/${id}?wallet=${owner}` });
+  assert.equal(JSON.parse(opened.body).messages.length, 2);
+  await app.close();
+});

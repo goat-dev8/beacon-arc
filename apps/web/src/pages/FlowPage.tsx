@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { DEFAULT_RECIPIENT, parseAgentAsk } from "@/lib/agentAsk";
 import {
   answerLiveFlow,
@@ -49,6 +49,7 @@ export function FlowPage() {
   const [convState, setConvState] = useState<ConvState>(null);
   const [settledServiceIds, setSettledServiceIds] = useState<Set<string>>(() => new Set());
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const conversationRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([WELCOME]);
   const [convSearch, setConvSearch] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -112,7 +113,7 @@ export function FlowPage() {
 
   const conversationsQuery = useQuery({
     queryKey: ["flow-conversations", wallet],
-    queryFn: async () => ({ conversations: [] as { id: string; title: string; last_message?: string | null }[] }),
+    queryFn: () => api.listChats(wallet!),
     enabled: Boolean(wallet),
   });
 
@@ -122,16 +123,25 @@ export function FlowPage() {
     enabled: Boolean(wallet),
   });
 
-  async function loadConversation(id: string, _w: string) {
+  async function loadConversation(id: string, owner: string) {
+    conversationRef.current = id;
     setConversationId(id);
+    let saved;
+    try {
+      saved = await api.getChat(id, owner);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "That chat could not be opened.";
+      setMessages([WELCOME, { id: crypto.randomUUID(), role: "assistant", text: detail, displayModel: "Arc vault" }]);
+      return;
+    }
     const loaded: ChatMsg[] = [
       WELCOME,
-      {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: "Saved chats are not an Arc payment record. Open the vault activity list for Executed logs.",
-        displayModel: "Arc vault",
-      },
+      ...saved.messages.map((message) => ({
+        id: message.id,
+        role: message.role === "user" ? "user" as const : "assistant" as const,
+        text: message.text,
+        displayModel: message.role === "user" ? undefined : "Arc vault",
+      })),
     ];
     setSettledServiceIds(inferSettledServiceIds(loaded));
     try {
@@ -149,6 +159,7 @@ export function FlowPage() {
 
   async function startNewChat() {
     setAgentId("general");
+    conversationRef.current = null;
     setConversationId(null);
     setConvState(null);
     setSettledServiceIds(new Set());
@@ -177,8 +188,8 @@ export function FlowPage() {
         },
       ]);
       if (wallet) {
+        void remember(message, data.text);
         void qc.invalidateQueries({ queryKey: ["balances", wallet] });
-        void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
         void qc.invalidateQueries({ queryKey: ["flow-activity", wallet] });
       }
     },
@@ -225,12 +236,42 @@ export function FlowPage() {
     return verified.token;
   }
 
+  async function remember(userText: string, assistantText: string) {
+    if (!wallet) return;
+    try {
+      let id = conversationRef.current;
+      if (!id) {
+        const created = await api.createChat(wallet, userText.replace(/\s+/g, " ").trim().slice(0, 80));
+        id = created.conversation.id;
+        conversationRef.current = id;
+        setConversationId(id);
+      }
+      await api.appendChat(id, wallet, [
+        { role: "user", text: userText },
+        { role: "assistant", text: assistantText },
+      ]);
+      void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Chat history could not be saved.";
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: `${detail} The message is still on this screen.`,
+          displayModel: "Arc vault",
+        },
+      ]);
+    }
+  }
+
   function pushPair(userText: string, assistantText: string) {
     setMessages((m) => [
       ...m,
       { id: crypto.randomUUID(), role: "user", text: userText, agentId },
       { id: crypto.randomUUID(), role: "assistant", agentId, text: assistantText, displayModel: "Arc vault" },
     ]);
+    void remember(userText, assistantText);
   }
 
   function submit(raw: string) {
@@ -351,8 +392,13 @@ export function FlowPage() {
           setRenameValue(title);
         }}
         onCancelRename={() => setRenamingId(null)}
-        onCommitRename={() => {
+        onCommitRename={(id) => {
+          const title = renameValue.trim();
           setRenamingId(null);
+          if (!wallet || !title) return;
+          void api.renameChat(id, wallet, title).then(() => {
+            void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
+          });
         }}
         onLoad={(id) => {
           if (wallet) void loadConversation(id, wallet);

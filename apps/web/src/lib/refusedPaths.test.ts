@@ -19,4 +19,6 @@ test("Arc liveness routes are not refused by this guard", () => {
   assert.equal(refusedArcPath("/ready"), false);
   assert.equal(refusedArcPath("/v1/verify/0xabc"), false);
   assert.equal(refusedArcPath("/mcp"), false);
+  assert.equal(refusedArcPath("/v1/chats"), false);
+  assert.equal(refusedArcPath("/v1/chats/abc"), false);
 });

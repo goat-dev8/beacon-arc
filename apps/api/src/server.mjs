@@ -305,7 +305,64 @@ export function createServer(deps) {
   app.post("/v1/agent/send", async (req, reply) => agentSend(deps, agentHits, req, reply));
   app.post("/v1/agent/swap", async (req, reply) => agentSwap(deps, agentHits, req, reply));
 
+  const chatHits = new Map();
+  app.get("/v1/chats", async (req, reply) => {
+    const wallet = walletOf(req.query?.wallet);
+    if (!wallet) return reply.code(400).send({ error: { code: "wallet", message: "A wallet address is required." } });
+    return { ok: true, conversations: await deps.store.listChats(wallet) };
+  });
+  app.post("/v1/chats", async (req, reply) => {
+    const wallet = walletOf(req.body?.wallet);
+    if (!wallet) return reply.code(400).send({ error: { code: "wallet", message: "A wallet address is required." } });
+    if (!rateAllow(chatHits, `chat:${clientIp(req)}`, 20, 10 * 60 * 1000, Date.now())) {
+      return reply.code(429).send({ error: { code: "rate", message: "Too many new chats. Wait and retry." } });
+    }
+    const title = cleanTitle(req.body?.title);
+    return { ok: true, conversation: await deps.store.createChat(wallet, title) };
+  });
+  app.get("/v1/chats/:id", async (req, reply) => {
+    const wallet = walletOf(req.query?.wallet);
+    if (!wallet) return reply.code(400).send({ error: { code: "wallet", message: "A wallet address is required." } });
+    const row = await deps.store.readChat(req.params.id, wallet);
+    if (!row) return reply.code(404).send({ error: { code: "missing", message: "That chat is not on this wallet." } });
+    return { ok: true, ...row };
+  });
+  app.post("/v1/chats/:id/messages", async (req, reply) => {
+    const wallet = walletOf(req.body?.wallet);
+    if (!wallet) return reply.code(400).send({ error: { code: "wallet", message: "A wallet address is required." } });
+    if (!rateAllow(chatHits, `msg:${clientIp(req)}`, 40, 10 * 60 * 1000, Date.now())) {
+      return reply.code(429).send({ error: { code: "rate", message: "Too many messages. Wait and retry." } });
+    }
+    const incoming = Array.isArray(req.body?.messages) ? req.body.messages.slice(0, 8) : [];
+    const messages = incoming.flatMap((item) => {
+      const role = item?.role === "user" || item?.role === "assistant" ? item.role : null;
+      const text = typeof item?.text === "string" ? item.text.trim().slice(0, 4000) : "";
+      return role && text ? [{ role, text }] : [];
+    });
+    if (!messages.length) return reply.code(400).send({ error: { code: "empty", message: "A message is required." } });
+    const saved = await deps.store.appendChat(req.params.id, wallet, messages);
+    if (!saved) return reply.code(404).send({ error: { code: "missing", message: "That chat is not on this wallet." } });
+    return { ok: true };
+  });
+  app.patch("/v1/chats/:id", async (req, reply) => {
+    const wallet = walletOf(req.body?.wallet);
+    const title = typeof req.body?.title === "string" ? cleanTitle(req.body.title) : "";
+    if (!wallet || !title) return reply.code(400).send({ error: { code: "title", message: "A wallet and a title are required." } });
+    const renamed = await deps.store.renameChat(req.params.id, wallet, title);
+    if (!renamed) return reply.code(404).send({ error: { code: "missing", message: "That chat is not on this wallet." } });
+    return { ok: true };
+  });
+
   return app;
+}
+
+function walletOf(value) {
+  return typeof value === "string" && isAddress(value) ? value.toLowerCase() : null;
+}
+
+function cleanTitle(value) {
+  const title = String(value ?? "New chat").replace(/\s+/g, " ").trim().slice(0, 80);
+  return title || "New chat";
 }
 
 function clientIp(req) {

@@ -451,3 +451,10 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - Executor `0x412045b7c64d471DE57024f11E080289e6082172` has about 0.007837 native. Top it up before another relay.
 - Gates: npm test 73/73, tsc clean, vite build ok, guard clean, forge 42/42. No contract change.
 - The Rabby "Request from" warning is still a domain-reputation flag. A custom domain is the fix. The Blockaid HTTP 200 above is receipt only.
+
+## 2026-10-14 — Vault reads no longer wait on the wallet
+
+- With a wallet connected, the vault page stayed on "Reading the vault balance…" and "Reading the limits…". Chain reads were sent through the injected provider. In the founder's Chrome that provider is MetaMask (`io.metamask`, saved network `eip155:5042`) and `eth_chainId` does not return. The public Arc RPC answered the same `owner()` call in about 400ms.
+- Reads now use `https://rpc.mainnet.arc.io` only. Signing still uses the wallet. After deploy `dpl_DE86LAwi7RWLaKV3XEWhzZc6nK36`, the founder's open tab showed 0.013 USDC, cap 0.01, day limit 0.05, nonce 3, and "You are the owner."
+- A second click on "Confirm send — real transaction" for 0.001 USDC (1000 base units, recipient `0xCb2E…3Edd`, nonce 3) did not open a signature prompt. The page now says "The wallet did not answer. Open it, unlock it, and try again." instead of leaving every button disabled. Passive chain checks on page load no longer call the wallet.
+- No new broadcast. The send is waiting on MetaMask to answer. Deploy of the wallet message is `dpl_BorAxD2qk7LzaQqp4omvc8VvEVgX`. `tsc --noEmit` was clean. Contracts were not changed.

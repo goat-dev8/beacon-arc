@@ -499,3 +499,11 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - No custom domain is on the Vercel project. The MetaMask Request from warning was not cleared and no new Blockaid form was filed.
 - Checks before this note: node tests 70/70 excluding the production HTTP file, `tsc --noEmit` clean, `vite build` ok, `npm run guard` clean, `forge test` 42/42. The production HTTP test expects the V2 vault and is run after the API deploy.
 
+## 2026-10-15 — Read-only reports reconciled
+
+- The repo, judge, contract, and QA reads were taken against `5a2ec84`, before `466f44e`. Their stale-homepage and stale-status findings were already fixed in that commit. Production now serves the 0.030 USDC strip, and `GET /v1/quote/swap` no longer says the live vault has no swap function.
+- CCTP-X research was accepted. Iris lists EURC on Ethereum and Base as enabled, Avalanche as disabled, and no World Chain route. Arc `isTrustedDomain` is true for domains 0 and 6. A vault-initiated call is still unproven. No integration was added. The contract review agrees: keep V2 immutable and keep standard USDC bridge chain-gated.
+- The October 15 grant-expiry warning in those reports was rejected. `grants(1)` on the live vault expires 2026-11-12T20:30:14Z.
+- `/v1/v2/info` still cites the larger swap `0xab5c6933…` and the first V2 send `0x0b45709e…`. Both succeeded on the live vault. They stay as proofs. They are not the newest dust swap.
+- `COMPETITIVE_REVIEW.md` still said the deployed vault has no swap function. That sentence was wrong after V2 and is corrected in this note.
+

@@ -1104,16 +1104,12 @@ export function ActionCard({
             </button>
           )}
           {wallet && swapStatus !== "confirmed" && canExecute && card.riskTier !== "BLOCK" && (
-            <button
-              type="button"
-                  disabled={busy || quoteStale || (card.needsHuman === true && !riskAck)}
-              onClick={() => {
-                setError("The live vault has no swap function. Beacon will not send this trade.");
-              }}
-              className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
+            <a
+              href="/flow/agent"
+              className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink"
             >
-              Swap stays off
-            </button>
+              Open the agent console
+            </a>
           )}
           <a
             href={NETWORK.faucet}

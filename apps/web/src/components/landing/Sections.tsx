@@ -8,7 +8,7 @@ import {
 } from "@/components/diagrams/BeaconDiagrams";
 import { PixelWave, Ruler, SectionLabel } from "@/components/landing/PixelWave";
 import { FacetCtaPair } from "@/components/ui/Button";
-import { CONTRACTS, NETWORK } from "@/lib/chain";
+import { CONTRACTS, NETWORK, V2_CONTRACTS } from "@/lib/chain";
 
 /** Greptile-style manifesto quote band */
 export function ManifestoQuote() {
@@ -220,50 +220,86 @@ export function LiveProofSection() {
 
   const contracts = [
     {
+      name: "BeaconUsdcVault V2",
+      role: "Live firewall. Holds USDC, sends, and swaps.",
+      address: V2_CONTRACTS.vault,
+    },
+    {
+      name: "BeaconVaultFactory V2",
+      role: "One live vault per owner. A second create reverts.",
+      address: V2_CONTRACTS.vaultFactory,
+    },
+    {
+      name: "BeaconReceiptRegistry V2",
+      role: "Every live execution writes a receipt here.",
+      address: V2_CONTRACTS.receiptRegistry,
+    },
+    {
       name: "BeaconUsdcVault",
-      role: "The firewall — holds USDC, calls transfer itself",
+      role: "First vault. Send only. Immutable.",
       address: CONTRACTS.vault,
     },
     {
       name: "BeaconVaultFactory",
-      role: "One vault per owner — create reverts twice",
+      role: "Created the first vault.",
       address: CONTRACTS.vaultFactory,
     },
     {
       name: "BeaconReceiptRegistry",
-      role: "Every execution writes an on-chain receipt",
+      role: "Receipts for the first vault.",
       address: CONTRACTS.receiptRegistry,
     },
   ];
 
   const refusal = {
-    hash: "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83",
-    block: "24848550",
-    revert: "OverCap() · 0x342fa66d",
+    hash: "0x39eb0351531f57b4c8167bc508d066a3d48fa297cdc79eacf1c63fa21756fd03",
+    block: "25859160",
+    revert: "reverted · zero logs",
   };
 
   const sends = [
     {
-      label: "The real payment — a third party",
-      detail: "0.01 USDC · 10,000 base units · agent-signed, executor-relayed",
-      hash: "0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3",
-      receipt:
-        "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30" as string | null,
-      block: "25790870",
+      label: "Live vault send",
+      detail: "0.001 USDC · 1,000 base units · agent-signed, executor-relayed",
+      hash: "0xa80b79d47e760075ac574304a565c1fcfeb98eb33e1f0e77be7fa8984a653fe8",
+      receipt: "0x2a67ac481adb62435ddd8f8fd080423c95d50614e143600bd2b2a63d8fd93b0f",
+      block: "25858345",
       to: "0xCb2E45A4c3703cd9C73DF09C8b945d5295Fa3Edd",
     },
     {
-      label: "The real swap — the vault traded",
-      detail: "0.005 USDC → 4463 EURC base units · agent-signed, executor-relayed (V2)",
-      hash: "0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d",
-      receipt: null,
-      block: "25818567",
+      label: "Live vault swap",
+      detail: "0.001 USDC → 891 EURC base units · output returned to the vault",
+      hash: "0x1a3e7cea053ea5c994e9ffd22f6962b97e4e86fbe2e860dc7f1a4175a1726c7f",
+      receipt: "0x0fa111b17b2664dfc6f7a433cdbe270e38343e5dc65a6995de430dd5b7a27968",
+      block: "25859531",
       to: "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe",
     },
   ];
 
-  const receiptId =
-    "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30";
+  const earlier = [
+    {
+      label: "First send",
+      hash: "0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab",
+      receipt: "0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a",
+    },
+    {
+      label: "First over-cap",
+      hash: "0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83",
+      receipt: null,
+    },
+    {
+      label: "First third-party send",
+      hash: "0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3",
+      receipt: "0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30",
+    },
+    {
+      label: "Larger live swap",
+      hash: "0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d",
+      receipt: null,
+    },
+  ];
+
+  const receiptId = "0x2a67ac481adb62435ddd8f8fd080423c95d50614e143600bd2b2a63d8fd93b0f";
 
   return (
     <section id="live-proof" className="relative border-b border-line bg-dusk py-24 text-paper md:py-32">
@@ -290,9 +326,9 @@ export function LiveProofSection() {
 
         <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-0 border border-white/15 sm:grid-cols-3">
           {[
-            ["0.026 USDC", "moved through policy"],
-            ["4 executions", "recorded on-chain"],
-            ["1 refusal", "reverted on-chain"],
+            ["0.030 USDC", "moved through policy"],
+            ["8 executions", "recorded on-chain"],
+            ["3 refusals", "reverted on-chain"],
           ].map(([big, small], i) => (
             <div
               key={big}
@@ -374,8 +410,9 @@ export function LiveProofSection() {
                 The vault said no.
               </h3>
               <p className="mt-3 max-w-md leading-relaxed text-white/65">
-                An over-cap send was attempted. The vault reverted on-chain instead of
-                trusting the agent — zero USDC moved, the nonce was not spent.
+                A send above the cap was broadcast to the live vault. The transaction reverted.
+                Zero logs. No USDC moved, and the nonce was not spent. The first refusal, selector
+                OverCap, is still on the first vault.
               </p>
               <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 font-mono text-xs">
                 <div>
@@ -498,7 +535,7 @@ export function LiveProofSection() {
               The receipt — readable without a wallet
             </p>
             <p className="mt-2 font-display text-2xl font-extrabold tracking-tight md:text-3xl">
-              0.01 USDC · 10,000 base units
+              0.001 USDC · 1,000 base units
             </p>
             <p className="mt-1 font-mono text-xs text-white/55">
               Registry proof + Arc explorer. On-chain is authoritative.
@@ -509,9 +546,30 @@ export function LiveProofSection() {
           </span>
         </motion.a>
 
+        <div className="mx-auto mt-4 flex max-w-6xl flex-wrap gap-x-5 gap-y-2 border border-white/10 px-6 py-4">
+          {earlier.map((item) => (
+            <span key={item.hash} className="inline-flex gap-3">
+              <a
+                href={`${NETWORK.explorer}/tx/${item.hash}`}
+                className="font-mono text-[11px] text-white/55 underline decoration-white/25 underline-offset-4 hover:text-paper"
+              >
+                {item.label}
+              </a>
+              {item.receipt ? (
+                <a
+                  href={`/verify/${item.receipt}`}
+                  className="font-mono text-[11px] text-white/55 underline decoration-white/25 underline-offset-4 hover:text-paper"
+                >
+                  receipt
+                </a>
+              ) : null}
+            </span>
+          ))}
+        </div>
+
         <p className="mx-auto mt-10 max-w-2xl text-center font-mono text-[11px] leading-relaxed text-white/40">
-          Dust-scale proof of the mechanism — the honest baseline, not a volume claim.
-          0.02 USDC moved · 2 executions · 1 on-chain refusal.{" "}
+          Dust-scale proof of the mechanism. The honest baseline, not a volume claim.
+          0.030 USDC moved · 8 executions · 3 on-chain refusals. Counted from registry Recorded events on 2026-10-14. The live vault still holds 0.01 USDC and 0.006245 EURC.{" "}
           <a
             href={NETWORK.explorer}
             target="_blank"

@@ -1,7 +1,7 @@
 import { getAddress } from "viem";
 import { apiBase } from "./publicEnv";
 import { publicClient } from "./wallet";
-import { CONTRACTS } from "./chain";
+import { CONTRACTS, V2_CONTRACTS } from "./chain";
 import { readArcReceipt } from "./onchainReceipt";
 import { normalizeApiSwapQuote, type ApiSwapQuoteBody, type SwapQuote } from "./swapQuote";
 
@@ -113,7 +113,7 @@ export async function readRouterQuote(amount = "10000"): Promise<SwapQuote> {
       amountIn: amounts[0].toString(),
       amountOut,
       executable: false,
-      reason: "The live vault has no swap function. This router read is not a trade.",
+      reason: "The direct router read is not a trade. Confirm an agent-signed swap on the live vault.",
     };
   } catch (error) {
     return {
@@ -158,7 +158,7 @@ const balanceAbi = [
 const LOCAL_CAPABILITIES: ArcCapabilities = {
   chainId: 5042,
   send: { executable: true },
-  swap: { executable: false, reason: "Uniswap v3 can quote USDC to EURC. The deployed vault has no swap function, so Beacon will not trade." },
+  swap: { executable: false, reason: "A quote is not a trade. The live V2 vault swaps after the owner confirms an agent-signed executeSwap." },
   cctp: { executable: false, reason: "CCTP contracts are on Arc. This vault cannot burn or mint, so a burn is not a completed bridge." },
   privacy: { executable: false, reason: "Arc Privacy Sector is planned and is not on mainnet. Beacon will not report a private transfer." },
   pq: { executable: false, reason: "The PQ precompile at 0x1800…0004 is 1 byte on mainnet. This is not a PQ wallet." },
@@ -168,13 +168,22 @@ const LOCAL_CAPABILITIES: ArcCapabilities = {
 
 export async function fetchArcVault(owner: string): Promise<ArcVault> {
   const client = publicClient();
-  const vault = await client.readContract({
-    address: CONTRACTS.vaultFactory,
+  const zero = "0x0000000000000000000000000000000000000000";
+  let vault = await client.readContract({
+    address: V2_CONTRACTS.vaultFactory,
     abi: factoryOfAbi,
     functionName: "vaultOf",
     args: [owner as `0x${string}`],
   });
-  if (vault === "0x0000000000000000000000000000000000000000") {
+  if (vault === zero) {
+    vault = await client.readContract({
+      address: CONTRACTS.vaultFactory,
+      abi: factoryOfAbi,
+      functionName: "vaultOf",
+      args: [owner as `0x${string}`],
+    });
+  }
+  if (vault === zero) {
     throw new Error("This owner has no vault.");
   }
   const [paused, maxPerTx, windowLimit, windowSpent, policyVersion, nonce, executor, usdcBalance] = await Promise.all([
@@ -418,7 +427,7 @@ export function answerFlow(
         }.`
       : "- Path: USDC `0x3600000000000000000000000000000000000000` to EURC `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1`.";
     const bytecode = rail?.vaultBytes != null
-      ? `The first vault is ${rail.vaultBytes} bytes. It ${rail.vaultHasSend ? "contains" : "does not contain"} executeSend \`${SEND_SELECTOR}\` and ${rail.vaultHasSwap ? "contains" : "does not contain"} the old router selector \`${SWAP_SELECTOR}\`. The live vault swaps with executeSwap after you confirm.`
+      ? `The vault read on this query is ${rail.vaultBytes} bytes. It ${rail.vaultHasSend ? "contains" : "does not contain"} executeSend \`${SEND_SELECTOR}\` and ${rail.vaultHasSwap ? "contains" : "does not contain"} the old router selector \`${SWAP_SELECTOR}\`. The live vault swaps with executeSwap after you confirm.`
       : "The first vault was not read on this query. The live vault swaps after you confirm in the agent console.";
     return [
       "## Swap quote",
@@ -436,8 +445,8 @@ export function answerFlow(
       blockLine,
       `- TokenMessengerV2 \`${MESSENGER}\`${rail?.messengerBytes != null ? ` is ${rail.messengerBytes} bytes` : ""}.`,
       `- MessageTransmitterV2 \`${TRANSMITTER}\`${rail?.transmitterBytes != null ? ` is ${rail.transmitterBytes} bytes` : ""}. ${domain}`,
-      "This vault has no burn or mint function. A burn is not a completed bridge, so Beacon will not start one.",
-      "Attestation lookup is read-only: Circle publishes one attestation per message hash after a burn. This vault cannot burn, so Beacon has no attested message to show.",
+      "The live vault has executeBridge. Arc's TokenMessenger rejects a burn that a contract starts, so Beacon does not report a completed bridge.",
+      "CCTP-X for EURC is a different contract. Production Iris lists it. Beacon does not call it.",
     ].filter(Boolean).join("\n");
   }
   if (q.includes("private")) {

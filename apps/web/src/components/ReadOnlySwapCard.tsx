@@ -22,7 +22,7 @@ export function SwapOffButton() {
     <button
       type="button"
       disabled
-      title="The live vault has no swap function. This quote can never become a trade."
+      title="This card does not broadcast. Confirm the swap in the agent console."
       className="mt-4 cursor-not-allowed rounded-full bg-[var(--p-border)] px-5 py-2 text-sm font-medium text-[var(--p-muted)] ring-1 ring-[var(--p-border-strong)]"
     >
       {SWAP_OFF_LABEL}

@@ -4,6 +4,7 @@ import {
   ARC_USDC,
   CHAIN_ID,
   FACTORY,
+  V2_FACTORY,
   REGISTRY,
   REGISTRY_DEPLOY_BLOCK,
   V3_FACTORY,
@@ -103,8 +104,12 @@ export async function factoryHasCode(client, factory = FACTORY) {
 }
 
 export async function readVault(client, owner) {
-  const vault = await client.readContract({ address: FACTORY, abi: factoryAbi, functionName: "vaultOf", args: [owner] });
-  if (vault === "0x0000000000000000000000000000000000000000") return null;
+  const zero = "0x0000000000000000000000000000000000000000";
+  let vault = await client.readContract({ address: V2_FACTORY, abi: factoryAbi, functionName: "vaultOf", args: [owner] });
+  if (vault === zero) {
+    vault = await client.readContract({ address: FACTORY, abi: factoryAbi, functionName: "vaultOf", args: [owner] });
+  }
+  if (vault === zero) return null;
   const [paused, maxPerTx, windowLimit, windowSpent, policyVersion, nonce, executor, usdcBalance] = await Promise.all([
     client.readContract({ address: vault, abi: vaultAbi, functionName: "paused" }),
     client.readContract({ address: vault, abi: vaultAbi, functionName: "maxPerTx" }),

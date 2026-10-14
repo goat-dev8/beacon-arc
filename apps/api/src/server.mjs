@@ -135,7 +135,7 @@ export function createServer(deps) {
         amountIn: quote.amountIn,
         amountOut: quote.amountOut,
         executable: false,
-        reason: "The live vault has no swap function. This quoter read is not a trade.",
+        reason: "This quote is not a trade. The live vault swaps only after the owner confirms an agent-signed executeSwap.",
       };
     } catch (error) {
       try {

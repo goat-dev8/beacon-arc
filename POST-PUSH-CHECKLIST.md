@@ -10,7 +10,7 @@ https://beacon-arc-one.vercel.app/
 
 - [ ] A "LIVE ON ARC MAINNET · CHAIN 5042" section renders with the headline
       "Proof, not promises."
-- [ ] Stat strip reads **"0.026 USDC · 4 executions · 1 refusal"**.
+- [ ] Stat strip reads **"0.030 USDC · 8 executions · 3 refusals"**.
 - [ ] 6 contract cards, each linking to its Sourcify page (V1 + V2):
   - https://repo.sourcify.dev/5042/0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C
   - https://repo.sourcify.dev/5042/0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b
@@ -19,9 +19,11 @@ https://beacon-arc-one.vercel.app/
   - https://repo.sourcify.dev/5042/0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e
   - https://repo.sourcify.dev/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe
 - [ ] Tx cards linking to the explorer:
-  - https://explorer.arc.io/tx/0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d (Success — live vault `0x8901…` swap. `0xf4c87b61…` called a superseded vault.)
-  - https://explorer.arc.io/tx/0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3 (Success — "The real payment — a third party", V1)
-  - https://explorer.arc.io/tx/0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83 (Failed — OverCap denial)
+  - https://explorer.arc.io/tx/0xa80b79d47e760075ac574304a565c1fcfeb98eb33e1f0e77be7fa8984a653fe8 (Success — live vault send)
+  - https://explorer.arc.io/tx/0x1a3e7cea053ea5c994e9ffd22f6962b97e4e86fbe2e860dc7f1a4175a1726c7f (Success — newest live vault swap)
+  - https://explorer.arc.io/tx/0x39eb0351531f57b4c8167bc508d066a3d48fa297cdc79eacf1c63fa21756fd03 (Reverted — live vault refusal)
+  - https://explorer.arc.io/tx/0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83 (Reverted — first vault OverCap)
+  - https://explorer.arc.io/tx/0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d (Success — larger live vault swap. `0xf4c87b61…` called a superseded vault.)
 - [ ] The "Not in this deploy" honesty section is still present and unchanged.
 
 ## 2. Verify page — the green MATCH state
@@ -61,10 +63,8 @@ https://beacon-arc-one.vercel.app/flow
 - [ ] https://beacon-arc-api.onrender.com/ready → 200, body contains
       `"chainId": 5042` (or `chain_id` 5042).
 - [ ] https://beacon-arc-api.onrender.com/v1/quote/swap → 200, body contains
-      `"venue": "uniswap-v3"` and `"executable": false`.
-      (The quoted rate should be near ~0.89 EURC per USDC — e.g. amountOut
-      892767 for amount 1000000 — not ~0.15. If the venue reads "uniswap-v2"
-      with `"indicative": true`, the v3 pin check failed; treat as degraded.)
+      `"executable": false` and a reason that says the quote is not a trade.
+      It must not say the live vault has no swap function.
 
 ## 6. Judge quickstart
 
@@ -74,7 +74,6 @@ https://beacon-arc-one.vercel.app/flow
 
 ## 7. Submission readiness
 
-- [ ] Grant 1 is still valid (expires 2026-10-15T05:06:06Z — after the
-      2026-10-14 23:59 ET deadline, so demos work; set a fresh grant after).
+- [ ] Grant 1 on the live vault is active until 2026-11-12T20:30:14Z. The older 2026-10-15 expiry was superseded. Read `grants(1)` before a demo.
 - [ ] `BUILD_HISTORY.md` and `CURRENT_STATUS.md` describe the deployed state.
 - [ ] No video work was added (owner records it separately).

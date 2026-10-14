@@ -4,7 +4,7 @@ import test from "node:test";
 const API = "https://beacon-arc-api.onrender.com";
 const WEB = "https://beacon-arc-one.vercel.app";
 const OWNER = "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034";
-const VAULT = "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6";
+const VAULT = "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe";
 const ARC_RPC = "https://rpc.mainnet.arc.io";
 const USDC = "0x3600000000000000000000000000000000000000";
 

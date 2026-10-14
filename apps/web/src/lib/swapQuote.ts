@@ -39,6 +39,6 @@ export function normalizeApiSwapQuote(body: ApiSwapQuoteBody, amount: string): S
     amountIn: body.amountIn ?? amount,
     amountOut: body.amountOut,
     executable: false,
-    reason: body.reason ?? "The live vault has no swap function. This quote is not a trade.",
+    reason: body.reason ?? "This quote is not a trade. Confirm an agent-signed swap on the live vault.",
   };
 }

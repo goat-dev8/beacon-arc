@@ -49,7 +49,8 @@ test("safe is the same vault, not a TEE unlock", async ({ page }) => {
 const RECEIPT_ID =
   "0x429b11d6083c4a323373fb54ed596d1c42ee6c8fef1b132f57a079381b13ad9a";
 const PROOF_CONTRACTS = [
-  "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6", // BeaconUsdcVault
+  "0x8901AAa87035b80c70B1636697DaE899Ef67c6fe", // live BeaconUsdcVault V2
+  "0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6", // first BeaconUsdcVault
   "0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b", // BeaconVaultFactory
   "0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C", // BeaconReceiptRegistry
 ];

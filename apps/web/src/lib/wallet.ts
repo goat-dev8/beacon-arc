@@ -309,11 +309,11 @@ export function walletClient() {
   return createWalletClient({ chain: aristotle, transport: custom(eth) });
 }
 
+/** Chain reads go to the public Arc RPC. The injected wallet answers signing, and on this page its eth_call does not return. */
 export function publicClient() {
-  const eth = getEip1193Provider();
   return createPublicClient({
     chain: aristotle,
-    transport: eth ? custom(eth) : http(NETWORK.rpc),
+    transport: http(NETWORK.rpc, { timeout: 12_000, retryCount: 1 }),
   });
 }
 
@@ -437,20 +437,22 @@ export async function writeArcContract(params: {
   functionName: string;
   args?: readonly unknown[];
 }): Promise<Hex> {
-  await ensureArcNetwork();
-  const wallet = walletClient();
-  const [account] = await wallet.getAddresses();
-  if (!account) throw new Error("Connect a wallet first.");
-  const txHash = await wallet.writeContract(
-    await withArcFees({
-      account,
-      address: params.address,
-      abi: params.abi,
-      functionName: params.functionName,
-      args: params.args ?? [],
-      chain: aristotle,
-    }),
-  );
+  const txHash = await walletTimeout((async () => {
+    await ensureArcNetwork();
+    const wallet = walletClient();
+    const [account] = await wallet.getAddresses();
+    if (!account) throw new Error("Connect a wallet first.");
+    return wallet.writeContract(
+      await withArcFees({
+        account,
+        address: params.address,
+        abi: params.abi,
+        functionName: params.functionName,
+        args: params.args ?? [],
+        chain: aristotle,
+      }),
+    );
+  })());
   const receipt = await publicClient().waitForTransactionReceipt({ hash: txHash });
   if (receipt.status !== "success") {
     throw new Error("The transaction reverted on Arc. Beacon will not call this a success.");
@@ -470,11 +472,33 @@ export function shortAddress(addr: string): string {
 }
 
 /** personal_sign helper for Beacon Safe pay challenges. */
+function walletTimeout<T>(task: Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("The wallet did not answer. Open it, unlock it, and try again.")),
+      20_000,
+    );
+    task.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export async function signPersonalMessage(message: string): Promise<string> {
-  const wallet = walletClient();
-  const [account] = await wallet.getAddresses();
-  if (!account) throw new Error("Connect a wallet first.");
-  return wallet.signMessage({ account, message });
+  return walletTimeout((async () => {
+    await ensureArcNetwork();
+    const wallet = walletClient();
+    const [account] = await wallet.getAddresses();
+    if (!account) throw new Error("Connect a wallet first.");
+    return wallet.signMessage({ account, message });
+  })());
 }
 
 /** Refused. The server does not choose calldata. */

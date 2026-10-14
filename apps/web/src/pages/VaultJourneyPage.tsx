@@ -57,6 +57,7 @@ export function VaultJourneyPage() {
 
   const state = useQuery({
     queryKey: ["v2-setup", V2_CONTRACTS.vault],
+    retry: 1,
     queryFn: async () => {
       const client = publicClient();
       const vault = V2_CONTRACTS.vault;
@@ -115,7 +116,11 @@ export function VaultJourneyPage() {
         <li className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
           <h2 className="font-display text-lg">Fund</h2>
           <p className="mt-1 text-sm text-[var(--p-muted)]">
-            {row ? `${usdc(row.usdcBalance)} USDC is already in the vault. That is the 6-decimal token balance. Gas is a separate 18-decimal balance and is not added to it.` : "Reading the vault balance…"}
+            {row
+              ? `${usdc(row.usdcBalance)} USDC is already in the vault. That is the 6-decimal token balance. Gas is a separate 18-decimal balance and is not added to it.`
+              : state.isError
+                ? "The balance could not be read from Arc. Nothing below is invented."
+                : "Reading the vault balance…"}
           </p>
         </li>
         <li className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
@@ -123,7 +128,9 @@ export function VaultJourneyPage() {
           <p className="mt-1 text-sm text-[var(--p-muted)]">
             {row
               ? `Each action can move at most ${usdc(row.maxPerTx)} USDC. The day can move at most ${usdc(row.windowLimit)} USDC. Nonce ${row.nonce.toString()}.${row.paused ? " The vault is paused." : ""}`
-              : "Reading the limits…"}
+              : state.isError
+                ? "The limits could not be read from Arc."
+                : "Reading the limits…"}
           </p>
         </li>
         <li className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
@@ -207,7 +214,12 @@ export function VaultJourneyPage() {
         </ul>
       </section>
       {note && <p className="mt-3 text-sm">{note}</p>}
-      {state.isError && <p className="mt-3 text-sm text-[var(--p-danger)]">The vault could not be read. Nothing below is invented.</p>}
+      {state.isError && (
+        <p className="mt-3 text-sm text-[var(--p-danger)]">
+          The vault could not be read. Nothing below is invented.
+          <button className="ml-2 underline" type="button" onClick={() => void state.refetch()}>Read it again</button>
+        </p>
+      )}
     </div>
   );
 }

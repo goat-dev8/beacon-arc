@@ -80,9 +80,6 @@ export function ProductWalletProvider({ children }: { children: ReactNode }) {
       } catch {
         /* ignore */
       }
-      void ensureArcNetwork().catch(() => {
-        /* user may need to approve chain switch on first sign */
-      });
     } else if (status === "disconnected") {
       setWallet(null);
       try {

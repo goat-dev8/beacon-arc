@@ -232,7 +232,11 @@ export function AgentTaskPanel({
           )}
         </div>
       </div>
-      {note && <p className="mt-3 text-sm">{note}</p>}
+      {note && (
+        <p className="mt-4 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2 text-sm" role="status">
+          {note}
+        </p>
+      )}
     </section>
   );
 }

@@ -458,3 +458,9 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - Reads now use `https://rpc.mainnet.arc.io` only. Signing still uses the wallet. After deploy `dpl_DE86LAwi7RWLaKV3XEWhzZc6nK36`, the founder's open tab showed 0.013 USDC, cap 0.01, day limit 0.05, nonce 3, and "You are the owner."
 - A second click on "Confirm send — real transaction" for 0.001 USDC (1000 base units, recipient `0xCb2E…3Edd`, nonce 3) did not open a signature prompt. The page now says "The wallet did not answer. Open it, unlock it, and try again." instead of leaving every button disabled. Passive chain checks on page load no longer call the wallet.
 - No new broadcast. The send is waiting on MetaMask to answer. Deploy of the wallet message is `dpl_BorAxD2qk7LzaQqp4omvc8VvEVgX`. `tsc --noEmit` was clean. Contracts were not changed.
+
+## 2026-10-14 — Sign goes straight to MetaMask, vault balance is the headline
+
+- Confirm was calling `eth_chainId` before `personal_sign`. That call never returns in this Chrome, so the signature popup never opened. Login now sends `personal_sign` first and waits 90 seconds.
+- Clicked confirm for 0.001 USDC (1000 base units, recipient `0xCb2E…3Edd`, nonce 3) on the live page. No MetaMask window appeared. After 90 seconds the page said the wallet did not answer. Phantom and the announced MetaMask provider also time out on `eth_chainId`. The extension is not delivering requests, so there is no prompt to approve.
+- The vault page now leads with the balance. In the founder's Chrome that is 0.013 USDC, with the owner line and the four setup steps. Deploy `dpl_4XC7LjfxFNN7kaQQiUX74pQVkVK4`. No new transaction.

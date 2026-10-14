@@ -32,7 +32,7 @@ export function AgentConsolePage() {
 
   return (
     <div className="min-h-full bg-[var(--p-bg)] px-4 py-6 text-[var(--p-fg)] md:px-8">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">Phase 2 · Agent spends</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">Agent spends</p>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Agent console</h1>
       <p className="mt-2 max-w-2xl text-sm text-[var(--p-muted)]">
         The granted agent signs each spend on vault {V2_CONTRACTS.vault.slice(0, 6)}…{V2_CONTRACTS.vault.slice(-4)}.

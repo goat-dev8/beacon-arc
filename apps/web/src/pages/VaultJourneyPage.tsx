@@ -91,23 +91,31 @@ export function VaultJourneyPage() {
 
   return (
     <div className="min-h-full bg-[var(--p-bg)] px-4 py-6 text-[var(--p-fg)] md:px-8">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">Arc · chain {NETWORK.chainId}</p>
-      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Your USDC vault</h1>
-      <p className="mt-2 max-w-2xl text-sm text-[var(--p-muted)]">
-        Setup once — you set the limits. Agent spends — within those limits, every spend is signed. You verify — every spend has a receipt.
-      </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">Arc chain {NETWORK.chainId}</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Your USDC vault</h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
+            You set the limits. The agent spends inside them. Every spend ends at a receipt.
+          </p>
+        </div>
+        <div className="min-w-[12rem] rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-faint)]">In the vault</p>
+          <p className="mt-1 font-display text-2xl">{row ? `${usdc(row.usdcBalance)} USDC` : state.isError ? "Unread" : "…"}</p>
+        </div>
+      </div>
 
       {!wallet ? (
-        <button className="mt-4 rounded-full bg-[var(--p-accent)] px-4 py-2 text-sm font-semibold text-[#062116]" type="button" disabled={connecting} onClick={() => void connect()}>
+        <button className="mt-4 rounded-full bg-[var(--p-accent)] px-4 py-2 text-sm font-semibold text-[#062116] active:scale-[0.98]" type="button" disabled={connecting} onClick={() => void connect()}>
           Connect wallet
         </button>
       ) : (
         <p className="mt-4 text-sm text-[var(--p-muted)]">
-          Connected {shortAddress(wallet)}. {isOwner ? "You are the owner of the live vault." : `The live vault owner is ${shortAddress(OWNER)}. This wallet can read it.`}
+          Connected {shortAddress(wallet)}. {isOwner ? "You are the owner of the live vault." : `The live vault owner is ${shortAddress(OWNER)}.`}
         </p>
       )}
 
-      <ol className="mt-4 grid gap-3">
+      <ol className="mt-4 grid gap-3 md:grid-cols-2">
         <li className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
           <h2 className="font-display text-lg">Create</h2>
           <p className="mt-1 text-sm text-[var(--p-muted)]">One vault already exists, so there is no create button. A second create reverts.</p>
@@ -208,7 +216,7 @@ export function VaultJourneyPage() {
           {PROOFS.map((proof) => (
             <li key={proof.href}>
               <a className="underline" href={proof.href} target={proof.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">{proof.title}</a>
-              <span className="text-[var(--p-muted)]"> — {proof.detail}</span>
+              <span className="text-[var(--p-muted)]">. {proof.detail}</span>
             </li>
           ))}
         </ul>

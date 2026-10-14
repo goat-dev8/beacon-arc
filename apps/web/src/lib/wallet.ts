@@ -5,6 +5,7 @@ import {
   encodeFunctionData,
   getAddress,
   http,
+  toHex,
   parseAbi,
   sha256,
   toBytes,
@@ -472,11 +473,11 @@ export function shortAddress(addr: string): string {
 }
 
 /** personal_sign helper for Beacon Safe pay challenges. */
-function walletTimeout<T>(task: Promise<T>): Promise<T> {
+function walletTimeout<T>(task: Promise<T>, ms = 20_000): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("The wallet did not answer. Open it, unlock it, and try again.")),
-      20_000,
+      ms,
     );
     task.then(
       (value) => {
@@ -492,13 +493,23 @@ function walletTimeout<T>(task: Promise<T>): Promise<T> {
 }
 
 export async function signPersonalMessage(message: string): Promise<string> {
-  return walletTimeout((async () => {
-    await ensureArcNetwork();
-    const wallet = walletClient();
-    const [account] = await wallet.getAddresses();
-    if (!account) throw new Error("Connect a wallet first.");
-    return wallet.signMessage({ account, message });
-  })());
+  const eth = getEip1193Provider();
+  if (!eth) throw new Error("Connect a wallet first.");
+  let account: string | null = null;
+  try {
+    account = localStorage.getItem("beacon.wallet");
+  } catch {
+    account = null;
+  }
+  if (!account || !/^0x[a-fA-F0-9]{40}$/.test(account)) {
+    const [fromWallet] = await walletTimeout(walletClient().getAddresses(), 15_000);
+    account = fromWallet ?? null;
+  }
+  if (!account) throw new Error("Connect a wallet first.");
+  return walletTimeout(
+    eth.request({ method: "personal_sign", params: [toHex(message), account] }) as Promise<string>,
+    90_000,
+  );
 }
 
 /** Refused. The server does not choose calldata. */

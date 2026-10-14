@@ -2,8 +2,8 @@ import type { SwapQuote } from "@/lib/arcApi";
 import { formatTokenAmount } from "@/lib/format";
 
 export const READ_ONLY_QUOTE_BANNER =
-  "Read-only quote. The live vault has no swap function — Beacon will not trade.";
-export const SWAP_OFF_LABEL = "Swaps stay off — the vault will not trade";
+  "This is a quote. Confirm in the agent console and the granted agent signs the swap on the live vault.";
+export const SWAP_OFF_LABEL = "Open the agent console to swap";
 
 /** Permanent honesty banner. Identical everywhere a swap quote is shown. */
 export function ReadOnlyQuoteBanner({ className = "" }: { className?: string }) {

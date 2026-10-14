@@ -19,7 +19,7 @@ https://beacon-arc-one.vercel.app/
   - https://repo.sourcify.dev/5042/0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e
   - https://repo.sourcify.dev/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe
 - [ ] Tx cards linking to the explorer:
-  - https://explorer.arc.io/tx/0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c (Success — "The real swap — the vault traded", V2)
+  - https://explorer.arc.io/tx/0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d (Success — live vault `0x8901…` swap. `0xf4c87b61…` called a superseded vault.)
   - https://explorer.arc.io/tx/0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3 (Success — "The real payment — a third party", V1)
   - https://explorer.arc.io/tx/0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83 (Failed — OverCap denial)
 - [ ] The "Not in this deploy" honesty section is still present and unchanged.
@@ -33,31 +33,28 @@ https://beacon-arc-one.vercel.app/verify/0xcd92f30d2673a3a852345aa832db4409ae372
       (not the old red false-negative).
 - [ ] Recipient row reads `0xCb2E45A4c3703cd9C73DF09C8b945d5295Fa3Edd`.
 
-## 3. Vault journey — progress rail + swap chip
+## 3. Vault setup and the agent console
 
 https://beacon-arc-one.vercel.app/flow/vault
 
-- [ ] The StepRail shows the 8 steps with done/current/locked states.
-- [ ] The send button is disabled on a malformed recipient **with** the inline
-      hint "Enter a valid 0x recipient address to enable signing".
-- [ ] The swap chip on the vault page: for the **V1** vault it shows the permanent
-      read-only banner ("Read-only quote. The live vault has no swap function — Beacon will
-      not trade.") and a disabled button reading "Swaps stay off — the vault
-      will not trade", venue **uniswap-v3**. For the **V2** vault the chip offers
-      the agent-signed `executeSwap` path (quote → sign → executor relay),
-      citing the real trade 0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c.
+- [ ] The page is setup for the live vault `0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`: Create, Fund, Spending limits, Agent and recipients.
+- [ ] Proof history shows the first vault `0x71Ef…` and does not offer a setup button for it.
+- [ ] The page background fills the viewport. There is no white dotted region under the last section.
+- [ ] "Task the agent" goes to https://beacon-arc-one.vercel.app/flow/agent.
 
-## 4. Flow chat — the swap card
+https://beacon-arc-one.vercel.app/flow/agent
 
-https://beacon-arc-one.vercel.app/flow (chat)
+- [ ] "Task the agent to send" and "Task the agent to swap" are enabled when `GET /v1/agent/status` says `ready: true`.
+- [ ] If that endpoint says the key is missing, the page names `AGENT_PRIVATE_KEY` and the Render dashboard. It does not show a grey button.
+- [ ] The first click shows the exact action. The second click is the owner's confirm and is a real transaction.
 
-- [ ] The **V1** swap card shows a **permanent read-only banner** above the quote and
-      a disabled button reading **"Swaps stay off — the vault will not trade"**.
-- [ ] There is no "Confirm swap" button anywhere on the V1 path.
-- [ ] The **V2** swap card exposes the real execution flow and links the on-chain
-      trade proof; the bridge card states honestly that contract-initiated CCTP
-      burns are currently rejected by Arc's messenger (chain-gated), with the
-      EOA-burn evidence linked — never presented as working.
+## 4. Flow chat
+
+https://beacon-arc-one.vercel.app/flow
+
+- [ ] `swap 0.001` shows the exact agent action, including the quote and the 1% floor. It does not say the live vault will not trade.
+- [ ] `send 0.001 USDC to 0xCb2E45A4c3703cd9C73DF09C8b945d5295Fa3Edd` does the same for a send. Reply `confirm` to broadcast.
+- [ ] CCTP and privacy stay read-only. Neither offers a trade button.
 
 ## 5. API — Render
 

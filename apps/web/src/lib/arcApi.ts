@@ -418,14 +418,14 @@ export function answerFlow(
         }.`
       : "- Path: USDC `0x3600000000000000000000000000000000000000` to EURC `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1`.";
     const bytecode = rail?.vaultBytes != null
-      ? `Vault bytecode is ${rail.vaultBytes} bytes. It ${rail.vaultHasSend ? "contains" : "does not contain"} executeSend \`${SEND_SELECTOR}\` and ${rail.vaultHasSwap ? "contains" : "does not contain"} swapExactTokensForTokens \`${SWAP_SELECTOR}\`.`
-      : "The vault bytecode was not read, so Beacon will not claim a swap function.";
+      ? `The first vault is ${rail.vaultBytes} bytes. It ${rail.vaultHasSend ? "contains" : "does not contain"} executeSend \`${SEND_SELECTOR}\` and ${rail.vaultHasSwap ? "contains" : "does not contain"} the old router selector \`${SWAP_SELECTOR}\`. The live vault swaps with executeSwap after you confirm.`
+      : "The first vault was not read on this query. The live vault swaps after you confirm in the agent console.";
     return [
       "## Swap quote",
       blockLine,
       sourceLine,
       `- ${quoteLine}`,
-      "- **executable: false** — the live vault has no swap function, so Beacon will not trade. This quote is not a fill.",
+      "- This quote is not the trade. Confirm in the chat, or open the agent console, and the granted agent signs executeSwap on the V2 vault. The first vault cannot swap.",
       bytecode,
     ].filter(Boolean).join("\n");
   }

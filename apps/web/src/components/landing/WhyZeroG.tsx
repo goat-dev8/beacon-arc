@@ -31,8 +31,8 @@ export const WHY_ZEROG_ITEMS = [
   },
   {
     id: "swap",
-    title: "Swaps stay off",
-    body: "Uniswap V3 quotes USDC to EURC, read-only. The live vault has no swap function, so Beacon will not trade.",
+    title: "The agent swaps",
+    body: "Uniswap v3 quotes USDC to EURC. The granted agent signs executeSwap on the live vault. Output returns to the vault. The first vault cannot swap.",
   },
   {
     id: "unavailable",

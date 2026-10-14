@@ -26,11 +26,12 @@ describe("answerFlow", () => {
     });
     expect(text).toContain("Uniswap v3");
     expect(text).toContain("8927 EURC base units");
-    expect(text).toContain("executable: false");
     expect(text).toContain("0x0000000000000000000000000000000000000001");
     expect(text).toContain("contains executeSend");
-    expect(text).toContain("does not contain swapExactTokensForTokens");
-    expect(text).toContain("will not trade");
+    expect(text).toContain("old router selector");
+    expect(text).toContain("executeSwap");
+    expect(text).not.toContain("will not trade");
+    expect(text).not.toContain("executable: false");
     expect(text).not.toContain("getAmountsOut");
     expect(text).not.toContain("## Allowlist");
   });
@@ -52,7 +53,8 @@ describe("answerFlow", () => {
     });
     expect(text).toContain("Uniswap v2 (indicative only)");
     expect(text).toContain("indicative only — the v3 quote API was unreachable");
-    expect(text).toContain("executable: false");
+    expect(text).toContain("executeSwap");
+    expect(text).not.toContain("will not trade");
   });
 
   it("never invents a number when the quoter returns nothing", () => {

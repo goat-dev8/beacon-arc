@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
-import { parseUnits } from "viem";
+import { DEFAULT_RECIPIENT, parseAgentAsk } from "@/lib/agentAsk";
 import {
   answerLiveFlow,
   confirmAgentSend,
@@ -61,15 +61,7 @@ export function FlowPage() {
   const [whyZeroGOpen, setWhyZeroGOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [flowSession, setFlowSession] = useState<string | null>(null);
-  const [pendingAsk, setPendingAsk] = useState<{ kind: "send" | "swap"; amount: string; recipient?: string; preview: AgentTaskResult } | null>(null);
-
-  function parseAsk(text: string) {
-    const send = text.match(/send\s+(\d+(?:\.\d{1,6})?)\s*usdc\s+to\s+(0x[a-fA-F0-9]{40})/i);
-    if (send) return { kind: "send" as const, amount: parseUnits(send[1], 6).toString(), recipient: send[2] };
-    const swap = text.match(/swap\s+(\d+(?:\.\d{1,6})?)\s*usdc/i);
-    if (swap) return { kind: "swap" as const, amount: parseUnits(swap[1], 6).toString() };
-    return null;
-  }
+  const [pendingAsk, setPendingAsk] = useState<{ kind: "send" | "swap" | "revert"; amount: string; recipient?: string; preview?: AgentTaskResult } | null>(null);
 
   function fieldsText(preview: AgentTaskResult) {
     const a = preview.action;
@@ -81,7 +73,7 @@ export function FlowPage() {
       `Nonce ${a.nonce}`,
       `Deadline ${a.deadline}`,
       `Policy version ${a.policyVersion}`,
-      preview.quote ? `Quote ${preview.quote.amountOut} out, floor ${preview.quote.amountOutMin} (${preview.quote.venue}).` : "",
+      preview.quote ? `Quote ${preview.quote.amountOut} EURC base units. Floor ${preview.quote.amountOutMin}, 1% under that quote (${preview.quote.venue}).` : "",
       "Reply confirm to broadcast this exact action. Anything else cancels it.",
     ].filter(Boolean).join("\n");
   }
@@ -241,19 +233,30 @@ export function FlowPage() {
     ]);
   }
 
-  function send() {
-    const text = input.trim();
+  function submit(raw: string) {
+    const text = raw.trim();
     if (!text || chat.isPending || !ready) return;
-    const ask = parseAsk(text);
+    const ask = parseAgentAsk(text);
+    if (ask?.kind === "revert") {
+      setInput("");
+      setPendingAsk({ kind: "revert", amount: "10001", recipient: DEFAULT_RECIPIENT });
+      pushPair(text, [
+        "Amount 10001 base units is above the cap of 10000.",
+        `Recipient ${DEFAULT_RECIPIENT}.`,
+        "Reply confirm to broadcast a real transaction that must revert OverCap. No USDC moves.",
+        "The earlier refusal is https://explorer.arc.io/tx/0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83",
+      ].join("\n"));
+      return;
+    }
     if (ask) {
       setInput("");
       setPendingAsk(null);
       void (async () => {
         try {
           const preview = ask.kind === "send"
-            ? await previewAgentSend(ask.recipient!, ask.amount)
+            ? await previewAgentSend(ask.recipient, ask.amount)
             : await previewAgentSwap(ask.amount);
-          setPendingAsk({ ...ask, preview });
+          setPendingAsk({ kind: ask.kind, amount: ask.amount, recipient: ask.kind === "send" ? ask.recipient : undefined, preview });
           pushPair(text, fieldsText(preview));
         } catch (error) {
           const message = error instanceof Error ? error.message : "The policy refused this. Nothing was signed.";
@@ -269,11 +272,14 @@ export function FlowPage() {
       void (async () => {
         try {
           const token = await ensureFlowSession();
-          const done = current.kind === "send"
-            ? await confirmAgentSend(token, current.recipient!, current.amount)
-            : await confirmAgentSwap(token, current.amount);
+          const done = current.kind === "swap"
+            ? await confirmAgentSwap(token, current.amount)
+            : await confirmAgentSend(token, current.recipient ?? DEFAULT_RECIPIENT, current.amount, current.kind === "revert");
           if (!done.txHash) throw new Error("No transaction hash. Beacon will not show success.");
-          pushPair(text, `Submitted. Arc tx ${done.txHash}\nReceipt ${done.verifyUrl}\n${done.explorer}`);
+          const status = current.kind === "revert"
+            ? "Broadcast. Open the explorer and confirm the status is reverted. No USDC moved."
+            : "Submitted.";
+          pushPair(text, `${status}\nArc tx ${done.txHash}\nReceipt ${done.verifyUrl}\n${done.explorer}`);
         } catch (error) {
           const message = error instanceof Error ? error.message : "The task failed. Nothing was shown as success.";
           pushPair(text, message);
@@ -283,6 +289,10 @@ export function FlowPage() {
     }
     setInput("");
     chat.mutate(text);
+  }
+
+  function send() {
+    submit(input);
   }
 
   const bal = balancesQuery.data?.balances ?? null;
@@ -385,9 +395,7 @@ export function FlowPage() {
           }}
           onTxConfirmed={() => undefined}
           onQuickReply={(text) => {
-            if (!ready || chat.isPending) return;
-            setInput("");
-            chat.mutate(text);
+            submit(text);
           }}
           onPaidResend={handlePaidResend}
           input={input}

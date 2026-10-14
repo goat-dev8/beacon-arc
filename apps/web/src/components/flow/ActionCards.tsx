@@ -10,7 +10,7 @@ import { executeLifiBridge } from "@/lib/wallet";
 import { classifyExecutionFailure } from "@/lib/walletFailures";
 import { swapQuoteExpired } from "@/lib/quoteFreshness";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
-import { ReadOnlyQuoteBanner, SwapOffButton } from "@/components/ReadOnlySwapCard";
+import { ReadOnlyQuoteBanner } from "@/components/ReadOnlySwapCard";
 import type { CardExecutionState, AgentCard } from "@/lib/executionPhases";
 import type { ConvState, PaidResendMeta } from "@/lib/flowTypes";
 
@@ -793,7 +793,9 @@ export function ActionCard({
         ) : null}
         {card.honesty ? <p className="mt-2 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
         <FccHardwareStrip card={card} />
-        <SwapOffButton />
+        <a href="/flow/agent" className="mt-4 inline-flex rounded-full bg-[var(--p-accent)] px-5 py-2 text-sm font-medium text-[#062116]">
+          Task the agent to swap
+        </a>
       </div>
     );
   }

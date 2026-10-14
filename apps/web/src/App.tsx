@@ -23,6 +23,9 @@ const FlowPage = lazy(() =>
 const VaultJourneyPage = lazy(() =>
   import("@/pages/VaultJourneyPage").then((m) => ({ default: m.VaultJourneyPage })),
 );
+const AgentConsolePage = lazy(() =>
+  import("@/pages/AgentConsolePage").then((m) => ({ default: m.AgentConsolePage })),
+);
 const ArcMcpPage = lazy(() =>
   import("@/pages/ArcMcpPage").then((m) => ({ default: m.ArcMcpPage })),
 );
@@ -133,6 +136,14 @@ function AppRoutes() {
               element={
                 <Suspense fallback={<RouteFallback />}>
                   <VaultJourneyPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="agent"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <AgentConsolePage />
                 </Suspense>
               }
             />

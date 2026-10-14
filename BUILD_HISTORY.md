@@ -439,3 +439,15 @@ The first hosted page was a small static shell. The product UI is the Beacon 0G 
 - **Not signed.** The acceptance gate is not green.
 
 - **Blockaid report filed (user-approved, PQTABS method):** `POST https://report.blockaid.io/api/submitDappForm` for `https://beacon-arc-one.vercel.app`, wallet field `Rabby`, classification Benign, transaction `0xa38fb4dc01fd13be69f88bcb36fa3e6021faf33f3461b66f1da4e9ceba8a94ab` (verified send), email empty. Result: HTTP 200 `OK`. A 200 is receipt only. The Rabby alert was not retested and is not cleared; the PQTABS history records the same limit.
+
+## 2026-10-14 — Founder retest: one live vault, a real agent console
+
+- The vault page is owner setup for the live vault `0x8901AAa87035b80c70B1636697DaE899Ef67c6fe` only: Create, Fund, Spending limits, Agent and recipients. The first vault `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6` is Proof history (send `0xa38fb4dc…`, OverCap `0xe53e8adf…`, receipt `0xcd92f30d…`). "Task the agent" moved to `/flow/agent`.
+- The white region was the page body showing through a main column that ended at the last card. The shell and its scroller now paint the dark background for the full viewport.
+- Flow sends `swap 0.001` and `send 0.001 USDC to 0x…` through the agent preview, then broadcasts only after `confirm`. CCTP and privacy stay read-only, with no trade button.
+- Production API, checked live on Render: `GET /v1/agent/status` ready, vault `0x8901…`. Send preview of 1000 base units returned nonce 3 and policy version 1. Swap preview of 1000 quoted 891 EURC with floor 882. Amount 10001 returned `OverCap` and did not sign.
+- Web production is `dpl_FUD9aiMTWsSMiR4BbdWeYazDR2hj`, aliased to https://beacon-arc-one.vercel.app. A headless replay of that deploy filled 1440×900 and 390×844 with no paper gap. The agent buttons were enabled. The first click showed the exact action. Chat `swap 0.001` showed the quote and the 1% floor. The second click was not taken, because it asks the owner to sign in. No wallet prompt was created.
+- No new broadcast. The live receipts stay the send `0xf290d9ed0d312dfb8f6edc913be0e99bb0f7bbdce4a21cd7b300ae6cb15ff309`, the swap `0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d` (block 25818567, this vault), and the over-cap revert `0x9c03853ae85d2db96f3517343101eff200351a3a1dc339bf1e43e517b7c308a7`. `0xf4c87b61…` called the superseded vault.
+- Executor `0x412045b7c64d471DE57024f11E080289e6082172` has about 0.007837 native. Top it up before another relay.
+- Gates: npm test 73/73, tsc clean, vite build ok, guard clean, forge 42/42. No contract change.
+- The Rabby "Request from" warning is still a domain-reputation flag. A custom domain is the fix. The Blockaid HTTP 200 above is receipt only.

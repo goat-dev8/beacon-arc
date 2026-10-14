@@ -20,9 +20,9 @@ on Arc mainnet: status **success**, one ERC-20 Transfer of **10,000 raw = 0.01 U
 [0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83](https://explorer.arc.io/tx/0xe53e8adf0bf2a3bbabce37ddb9f0267947e68a1a281aa473607ee7d2db663f83)
 on Arc mainnet: status **reverted** with selector `OverCap()`. The agent asked for more than the per-transaction cap, and the vault said no — **on-chain, not in a terms of service.** This is the money shot: the refusal is the product.
 
-**The real swap — the vault traded (V2, newest).** Transaction
-[0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c](https://explorer.arc.io/tx/0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c)
-on Arc mainnet: status **success**, block 25808007. The agent (`0xc3b183D5e4436C20282650348BE2D6c94c4142dc`) signed an EIP-712 swap action, the executor (`0x412045b7c64d471DE57024f11E080289e6082172`) relayed it unchanged, and the V2 vault (`0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`) executed `exactInputSingle` on the pinned Uniswap v3 USDC/EURC 0.05% pool: **5,000 USDC base units → 4,463 EURC base units**, output forced back into the vault. This is not a quote — it is a trade the firewall cannot be tricked out of.
+**The real swap — the live vault traded.** Transaction
+[0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d](https://explorer.arc.io/tx/0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d)
+on Arc mainnet: status **success**, block 25818567. The agent (`0xc3b183D5e4436C20282650348BE2D6c94c4142dc`) signed an EIP-712 swap action, the executor (`0x412045b7c64d471DE57024f11E080289e6082172`) relayed it unchanged, and the live vault (`0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`) executed the swap on the pinned Uniswap v3 USDC/EURC 0.05% pool: **5,000 USDC base units → 4,463 EURC base units**, output forced back into the vault. An earlier swap, `0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c`, called a superseded vault and is not this vault's trade.
 
 **The real third-party payment (V1, newest send).** Transaction
 [0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3](https://explorer.arc.io/tx/0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3)
@@ -48,12 +48,12 @@ V2 (adds agent-signed `executeSwap` + `executeBridge`, deployed 2026-10-13):
 
 The Arc explorer's contract tab sits behind Cloudflare's bot check, so use Sourcify — it is the reproducible path.
 
-## Step 4 — Try the firewall yourself (30 seconds)
+## Step 4 — Walk the product (one vault)
 
-Open https://beacon-arc-one.vercel.app/flow/vault (no wallet needed to read):
+Open https://beacon-arc-one.vercel.app/flow/vault. This page is owner setup for the live vault `0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`: Create, Fund, Spending limits, Agent and recipients. It reads chain state. The first vault `0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6` appears only under Proof history.
 
-1. Ask the flow to prepare a send. The API returns the EIP-712 action and runs preflight.
-2. Ask for an amount **over the cap**. Preflight refuses with reason `over_cap` — refused before anything is signed, nothing reaches the chain.
-3. Read the swap chip: it fetches a live quote from `GET /v1/quote/swap` — Uniswap v3 QuoterV2, `venue: "uniswap-v3"`. For the **V1** vault the quote is `executable: false` **always** (that vault has no swap function — the chip carries a permanent read-only banner and a disabled "Swaps stay off" button). For the **V2** vault the same quote feeds an agent-signed `executeSwap` — proven by the real trade in Step 2. The firewall's favorite word is still no: over-cap or off-allowlist, and the chain itself enforces the refusal.
+Open https://beacon-arc-one.vercel.app/flow/agent. **Task the agent to send** and **Task the agent to swap** are enabled when the server holds the agent key. The first click shows the exact action (recipient, amount, nonce, deadline, policy version; a swap also shows the quote and the 1% floor). The second click is the owner's confirmation and broadcasts a real transaction. If `AGENT_PRIVATE_KEY` is missing, the page says so and names the Render dashboard. It does not show a dead button.
 
-That's the whole product. A judge who never leaves the verify page and two explorer links has seen everything Beacon claims.
+Open https://beacon-arc-one.vercel.app/flow and type `swap 0.001` or `send 0.001 USDC to 0xCb2E45A4c3703cd9C73DF09C8b945d5295Fa3Edd`. The reply is that same action. Reply `confirm` to broadcast. CCTP and privacy stay read-only: Arc rejects a contract-started burn, and privacy is not on mainnet. Neither offers a button.
+
+Dust only. Do not send more than 0.01 USDC. A successful action ends at `/verify/<hash>` and the Arc explorer.

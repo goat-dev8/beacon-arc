@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
-import { Bot, ExternalLink, Landmark, Moon, Shield, Sparkles, Sun } from "lucide-react";
+import { Bot, ExternalLink, Landmark, Moon, Send, Shield, Sparkles, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ProductThemeProvider, useProductTheme } from "@/lib/productTheme";
 import { ProductWalletProvider } from "@/lib/productWallet";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/flow", end: true, label: "Flow", icon: Sparkles },
   { to: "/flow/desk", end: false, label: "Vault", icon: Landmark },
+  { to: "/flow/agent", end: false, label: "Agent", icon: Send },
   { to: "/flow/security", end: false, label: "Safe", icon: Shield },
   { to: "/flow/mcp", end: false, label: "Agents", icon: Bot },
 ];
@@ -90,13 +91,15 @@ function ShellChrome() {
   const location = useLocation();
   const reduce = useReducedMotion();
 
-  const routeKey = location.pathname.startsWith("/flow/desk")
+  const routeKey = location.pathname.startsWith("/flow/desk") || location.pathname.startsWith("/flow/vault")
     ? "desk"
-    : location.pathname.startsWith("/flow/security")
-      ? "security"
-      : location.pathname.startsWith("/flow/mcp") || location.pathname === "/mcp"
-        ? "mcp"
-        : "flow";
+    : location.pathname.startsWith("/flow/agent")
+      ? "agent"
+      : location.pathname.startsWith("/flow/security")
+        ? "security"
+        : location.pathname.startsWith("/flow/mcp") || location.pathname === "/mcp"
+          ? "mcp"
+          : "flow";
 
   return (
     <div
@@ -153,7 +156,7 @@ function ShellChrome() {
       <div
         id="main-content"
         tabIndex={-1}
-        className="min-h-0 min-w-0 flex-1 overflow-hidden outline-none"
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--p-bg)] outline-none"
       >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
@@ -161,7 +164,7 @@ function ShellChrome() {
             initial={reduce ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="h-full"
+            className="min-h-0 flex-1 overflow-y-auto bg-[var(--p-bg)]"
           >
             <Outlet />
           </motion.div>

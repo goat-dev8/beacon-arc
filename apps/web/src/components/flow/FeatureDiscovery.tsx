@@ -57,7 +57,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   {
     id: "swap",
     title: "Swap",
-    blurb: "Uniswap v3 quotes USDC to EURC live — read-only, executable: false. This vault has no swap function, so Beacon will not trade.",
+    blurb: "Type an amount, confirm, and the granted agent swaps USDC to EURC on the live vault. The floor is 1% under the quote.",
     prompt: "Can I swap USDC?",
     icon: ArrowLeftRight,
   },

@@ -7,7 +7,7 @@ Updated 2026-10-13 (rescue run + deploy). This file describes the working tree o
 V1 (`0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`) is immutable and send-only, so the user authorized a redeploy: V2 adds agent-signed, policy-checked `executeSwap` (Uniswap v3, pinned pool/router, output always returns to the vault) and `executeBridge` (CCTP v2). V1 stays live and untouched — every V1 proof below remains valid.
 
 - **V2 contracts (Arc 5042, all Sourcify `exact_match`):** registry `0xcecb08b2cdacaf231b1838f20f932ad265fa2583`, factory `0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e`, vault `0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`.
-- **First REAL swap (2026-10-13):** agent-signed (`0xc3b183D5e4436C20282650348BE2D6c94c4142dc`) + executor-relayed (`0x412045b7c64d471DE57024f11E080289e6082172`) `executeSwap` — 5,000 USDC base units → 4,463 EURC base units on the pinned USDC/EURC 0.05% pool: `0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c` (block 25808007, status `0x1`; vault EURC balance verified 4463). Explorer: https://explorer.arc.io/tx/0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c
+- **Live-vault swap (2026-10-13):** agent-signed (`0xc3b183D5e4436C20282650348BE2D6c94c4142dc`) + executor-relayed (`0x412045b7c64d471DE57024f11E080289e6082172`) `executeSwap` on vault `0x8901AAa87035b80c70B1636697DaE899Ef67c6fe` — 5,000 USDC base units → 4,463 EURC base units: `0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d` (block 25818567, status `0x1`). Explorer: https://explorer.arc.io/tx/0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d. `0xf4c87b61…` (block 25808007) called the superseded vault `0xc3d405eb…`, not this one.
 - **V2 send (2026-10-13):** `executeSend` 0.001 USDC to `0xCb2E45A4c3703cd9C73DF09C8b945d5295Fa3Edd`: `0x0b45709e65921deda6854e394a5a03ec855d3fa9e8ffa80d0d169d8b625583bc` (status `0x1`).
 - **V2 setup:** policy maxPerTx 10000 / window 50000 / 86400s; grant 1 (agent `0xc3b183D5e4436C20282650348BE2D6c94c4142dc`, scopes 7 = send+swap+bridge, 30-day expiry); funded 0.02 USDC.
 - **Key technical discovery:** Arc's CCTP messenger is CCTP **v2 7-parameter** `depositForBurn` (amount, destDomain, mintRecipient, burnToken, destinationCaller, maxFee, minFinalityThreshold) — the 4-parameter v1 form does not exist on it. The vault hardcodes `destinationCaller=0`, `maxFee=0`, `minFinalityThreshold=1000`.
@@ -91,7 +91,7 @@ V1 (`0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`) is immutable and send-only, so
 - Fund vault 0.05 USDC `0x7c2c493fbfdef28c499212526844eacf9a416014e26b0ad7c147b291ec668fa2` status `0x1`
 - Allowlist third-party `0xbb049a2aef3b36ab23d1fb94976a67aeb9a15a31b422c5a6e11116d9dcdf36d5` status `0x1`
 - Third-party send 0.01 USDC `0xa04c49304913f2e9a553ed4882e350cb42a009a9f148ce08dcae3f817f5d11d3` status `0x1`, receipt `0xcd92f30d2673a3a852345aa832db4409ae37274fd2ab98cf8e8ccc5902c7ac30`
-- **V2 swap 5000 USDC → 4463 EURC** `0xf4c87b61812858d5e4381f328b19ad27eb8db4004b8a9432a1936f1df26ddd0c` status `0x1` (block 25808007) — first real vault-executed trade
+- **Live vault swap 5000 USDC → 4463 EURC** `0xab5c69330806929814c2fb059a7d33a6d50b46751dde3f3c53e413aeda2e7d8d` status `0x1` (block 25818567) on `0x8901…c6fe`
 - V2 send 0.001 USDC `0x0b45709e65921deda6854e394a5a03ec855d3fa9e8ffa80d0d169d8b625583bc` status `0x1`
 - EOA CCTP burn proof (bridge chain-gate evidence) `0xe519221e1c1d7b1c6225f22c1bd6bba9e76d1bb77fc467cf78fd1eace23731f1` status `0x1`
 

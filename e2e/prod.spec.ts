@@ -4,10 +4,9 @@ test("the vault desk is the USDC journey", async ({ page }) => {
   await page.goto("/flow/desk");
   await expect(page.getByRole("heading", { name: "Your USDC vault" })).toBeVisible();
   await expect(page.getByText("Escrow AI jobs")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Sign and relay the send" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Block recipient" })).toBeVisible();
-  // The step number is rendered aria-hidden, so the accessible heading name is "Activity" alone.
-  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Proof history" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Task the agent" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Activity" })).toHaveCount(0);
 });
 
 test("the landing does not describe a compute job", async ({ page }) => {
@@ -121,26 +120,23 @@ test("the vault journey loads without console errors", async ({ page }) => {
   );
 });
 
-test("the vault page swap quote is honest: read-only banner and disabled trade button", async ({ page }) => {
-  await page.goto("/flow/vault");
-  // Same honesty UI the chat swap card already has
-  // (apps/web/src/components/flow/ActionCards.tsx, "swap_quote"): a permanent
-  // read-only banner plus a disabled action button — never a "Confirm swap".
-  const banner = page.getByText("Read-only quote", { exact: false });
-  await expect(banner).toBeVisible({ timeout: 60_000 });
-  const tradeOff = page.getByRole("button", { name: /swaps stay off/i });
-  await expect(tradeOff).toBeVisible();
-  await expect(tradeOff).toBeDisabled();
-});
-
-test("the vault page swap chip quotes uniswap v3, not v2", async ({ page }) => {
-  await page.goto("/flow/vault");
-  // The rescue moved quotes from the thin-liquidity Uniswap V2 router to the
-  // pinned Uniswap V3 quoter (API venue "uniswap-v3"). The vault chip must
-  // reflect v3; the old V2-router label must be gone entirely.
-  // Scoped to the EURC chip so "policy v3" cannot false-positive.
-  await expect(page.getByText(/uniswap v3.*eurc/i)).toBeVisible({
+test("the agent console offers a real send, not a dead button", async ({ page }) => {
+  await page.goto("/flow/agent");
+  await expect(page.getByRole("heading", { name: "Agent console" })).toBeVisible({
     timeout: 60_000,
   });
+  const send = page.getByRole("button", { name: "Task the agent to send" });
+  const missing = page.getByText("AGENT_PRIVATE_KEY is missing");
+  await expect(send.or(missing)).toBeVisible({ timeout: 60_000 });
+  if (await send.isVisible()) await expect(send).toBeEnabled();
+  await expect(page.getByText("Uniswap V2 read")).toHaveCount(0);
+});
+
+test("the vault page does not offer a dead swap", async ({ page }) => {
+  await page.goto("/flow/vault");
+  await expect(page.getByRole("heading", { name: "Proof history" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("button", { name: /swaps stay off/i })).toHaveCount(0);
   await expect(page.getByText("Uniswap V2 read")).toHaveCount(0);
 });

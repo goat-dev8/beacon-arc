@@ -78,6 +78,9 @@
     --p-on-accent: #06130c;
     --p-radius: 12px;
     --p-radius-sm: 8px;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
   }
 
   .product-shell[data-theme="dark"] {

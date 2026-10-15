@@ -11,7 +11,7 @@ Policy-bounded USDC sends and swaps, enforced by a Vault on Arc and independentl
 | API | [beacon-arc-api.onrender.com](https://beacon-arc-api.onrender.com) |
 | Repository | [github.com/goat-dev8/beacon-arc](https://github.com/goat-dev8/beacon-arc) |
 | Active vault | [`0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`](https://explorer.arc.io/address/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe) |
-| Code these proofs describe | `466f44e` on the API. The site is the Vercel alias above. Contracts have not been replaced since that release. |
+| Code these proofs describe | API `466f44e`. Site `6a9cfda` on the Vercel alias above. Contracts have not been replaced since the API release. |
 
 Beacon lets an AI agent execute policy-bounded financial actions while the Vault enforces the owner's limits on-chain.
 
@@ -157,7 +157,7 @@ The live swap is Uniswap v3 USDC/EURC on Arc, fee tier 500, through the router a
 
 ## Tests you can run yourself
 
-Measured 2026-10-14 against the product code at `466f44e`. This documentation change does not alter contracts or the app. Counts are separate. The 4 production HTTP checks sit inside the 74. They are not a 78.
+Counts are separate. The 4 production HTTP checks sit inside the 74. They are not a 78. Unit, Foundry, typecheck, guard, and the web build were run on 2026-10-14 against the API release `466f44e`, then the unit suite was run again after the landing copy change. Playwright was run after the site commit below.
 
 | Suite | Command | Result |
 |---|---|---|
@@ -167,7 +167,7 @@ Measured 2026-10-14 against the product code at `466f44e`. This documentation ch
 | Typecheck | `npx tsc --noEmit -p apps/web/tsconfig.app.json` | clean |
 | Guard | `npm run guard` | clean |
 | Production web build | `npm run build --workspace=@beacon/web` | succeeded |
-| Playwright | `npm run e2e` | not part of this documentation run. It drives the production site and does not sign a wallet. |
+| Playwright | `npm run e2e` | 11 passed on 2026-10-15 against the production alias, after site commit `6a9cfda`. No wallet signature. GitHub Actions on that commit passed unit, Forge, and e2e. |
 | Read-only chain | `eth_call` / `eth_getTransactionReceipt` on `https://rpc.mainnet.arc.io` | vault, balances, and the four receipts above |
 
 Foundry uses local mocks. A passing bridge test is not a live CCTP transfer. `npm test` reads public Arc and the public API. It does not broadcast.

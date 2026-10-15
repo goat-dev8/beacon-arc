@@ -371,7 +371,7 @@ export function LiveProofSection() {
               </p>
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
                 <a
-                  href={`https://sourcify.dev/server/v2/contract/5042/${c.address}`}
+                  href={`https://repo.sourcify.dev/5042/${c.address}`}
                   target="_blank"
                   rel="noreferrer"
                   className="font-mono text-xs text-signal underline decoration-signal/40 underline-offset-4 hover:decoration-signal"

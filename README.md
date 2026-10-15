@@ -42,12 +42,12 @@ V2 is the active product. V1 is the historical send-only deployment. It is immut
 
 | | Role | Address | Sourcify exact match |
 |---|---|---|---|
-| V2 | Vault | [`0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`](https://explorer.arc.io/address/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe) | [record](https://sourcify.dev/server/v2/contract/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe) · 2026-10-13 |
-| V2 | Factory | [`0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e`](https://explorer.arc.io/address/0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e) | [record](https://sourcify.dev/server/v2/contract/5042/0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e) · 2026-10-13 |
-| V2 | Receipt registry | [`0xcecb08b2cdacaf231b1838f20f932ad265fa2583`](https://explorer.arc.io/address/0xcecb08b2cdacaf231b1838f20f932ad265fa2583) | [record](https://sourcify.dev/server/v2/contract/5042/0xcecb08b2cdacaf231b1838f20f932ad265fa2583) · 2026-10-13 |
-| V1 | Vault | [`0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`](https://explorer.arc.io/address/0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6) | [record](https://sourcify.dev/server/v2/contract/5042/0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6) · 2026-10-08 |
-| V1 | Factory | [`0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b`](https://explorer.arc.io/address/0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b) | [record](https://sourcify.dev/server/v2/contract/5042/0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b) · 2026-10-08 |
-| V1 | Receipt registry | [`0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C`](https://explorer.arc.io/address/0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C) | [record](https://sourcify.dev/server/v2/contract/5042/0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C) · 2026-10-08 |
+| V2 | Vault | [`0x8901AAa87035b80c70B1636697DaE899Ef67c6fe`](https://explorer.arc.io/address/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe) | [record](https://repo.sourcify.dev/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe) · 2026-10-13 |
+| V2 | Factory | [`0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e`](https://explorer.arc.io/address/0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e) | [record](https://repo.sourcify.dev/5042/0xa7c95a58b499ed4dc607e6e7030cece2b00fab6e) · 2026-10-13 |
+| V2 | Receipt registry | [`0xcecb08b2cdacaf231b1838f20f932ad265fa2583`](https://explorer.arc.io/address/0xcecb08b2cdacaf231b1838f20f932ad265fa2583) | [record](https://repo.sourcify.dev/5042/0xcecb08b2cdacaf231b1838f20f932ad265fa2583) · 2026-10-13 |
+| V1 | Vault | [`0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6`](https://explorer.arc.io/address/0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6) | [record](https://repo.sourcify.dev/5042/0x71Ef5450F5eE6E8A888c1E7b7f2e89bCCd4fFAB6) · 2026-10-08 |
+| V1 | Factory | [`0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b`](https://explorer.arc.io/address/0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b) | [record](https://repo.sourcify.dev/5042/0x3db8750EE3a397b5A8A4e1842Bfb69f511342C6b) · 2026-10-08 |
+| V1 | Receipt registry | [`0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C`](https://explorer.arc.io/address/0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C) | [record](https://repo.sourcify.dev/5042/0xB4483128Bf95aa63621cB9EcA7f5d22a0d546b6C) · 2026-10-08 |
 
 ## How an action is enforced
 
@@ -216,7 +216,7 @@ No wallet and no new transaction.
 1. Open [the product](https://beacon-arc-one.vercel.app).
 2. The vault enforces a signed action. The agent does not hold the treasury.
 3. Open the [active vault](https://explorer.arc.io/address/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe).
-4. Open its [Sourcify exact match](https://sourcify.dev/server/v2/contract/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe).
+4. Open its [Sourcify exact match](https://repo.sourcify.dev/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe).
 5. Open the [send](https://explorer.arc.io/tx/0xa80b79d47e760075ac574304a565c1fcfeb98eb33e1f0e77be7fa8984a653fe8).
 6. Open the [swap](https://explorer.arc.io/tx/0x1a3e7cea053ea5c994e9ffd22f6962b97e4e86fbe2e860dc7f1a4175a1726c7f).
 7. Open the [reverted call](https://explorer.arc.io/tx/0x39eb0351531f57b4c8167bc508d066a3d48fa297cdc79eacf1c63fa21756fd03).
@@ -242,5 +242,5 @@ Present in source, not a completed product path:
 - [Arc RPC](https://rpc.mainnet.arc.io) and [Arc explorer](https://explorer.arc.io)
 - [Uniswap v3 single swap](https://docs.uniswap.org/contracts/v3/guides/swaps/single-swaps)
 - [Circle CCTP](https://developers.circle.com/cctp) for the bridge boundary above, not as a live Beacon transfer
-- [Active vault Sourcify record](https://sourcify.dev/server/v2/contract/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe)
+- [Active vault Sourcify record](https://repo.sourcify.dev/5042/0x8901AAa87035b80c70B1636697DaE899Ef67c6fe)
 - [Product](https://beacon-arc-one.vercel.app) · [API health](https://beacon-arc-api.onrender.com/health) · [repository](https://github.com/goat-dev8/beacon-arc)

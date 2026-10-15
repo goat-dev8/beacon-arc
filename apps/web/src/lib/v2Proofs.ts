@@ -14,7 +14,7 @@
 const ARC_EXPLORER = "https://explorer.arc.io";
 
 export const V2_EXPLORER_TX = (hash: string) => `${ARC_EXPLORER}/tx/${hash}`;
-export const V2_SOURCIFY = (address: string) => `https://repo.sourcify.dev/5042/${address}`;
+export const V2_SOURCIFY = (address: string) => `https://sourcify.dev/server/v2/contract/5042/${address}`;
 
 export const V2_SWAP_PROOF = {
   kind: "swap",

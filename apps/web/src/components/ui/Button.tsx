@@ -64,7 +64,7 @@ export function FacetCtaPair({
       <LeftTag
         href={leftTo}
         className={cn(
-          "relative isolate inline-flex items-center justify-center bg-dusk font-display text-paper clip-facet-left",
+          "relative isolate inline-flex items-center justify-center bg-dusk font-display text-paper clip-facet-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal",
           pad,
         )}
       >
@@ -73,7 +73,7 @@ export function FacetCtaPair({
       <RightTag
         href={rightTo}
         className={cn(
-          "relative z-[1] -ml-1.5 inline-flex items-center justify-center bg-signal font-display text-ink clip-facet-right",
+          "relative z-[1] -ml-1.5 inline-flex items-center justify-center bg-signal font-display text-ink clip-facet-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           pad,
         )}
       >

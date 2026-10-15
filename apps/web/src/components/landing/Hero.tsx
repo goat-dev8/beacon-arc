@@ -63,48 +63,55 @@ export function Hero() {
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-signal-deep">
-            Built on Arc
+            Live on Arc mainnet · chain 5042
           </p>
-          <h1 className="max-w-[13ch] font-display text-[clamp(2.15rem,10vw,5.5rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-ink">
-            Where intent
-            <br />
-            becomes proof.
+          <h1 className="max-w-[12em] font-display text-[clamp(2.05rem,6.4vw,4.6rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-ink">
+            Give AI agents a budget, not a blank cheque.
           </h1>
         </motion.div>
 
         <motion.div
-          className="relative z-10 max-w-xl pb-4"
+          className="relative z-10 max-w-2xl pb-4"
           initial={reduce ? false : { opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="text-base leading-relaxed tracking-tight text-ink-muted sm:text-xl md:text-2xl">
-            Beacon is the USDC firewall for agents on Arc. Setup once — you set the limits.
-            The agent spends inside them, and every spend leaves a receipt you can verify.
+            Policy-bounded USDC sends and swaps. Agent-signed, enforced by the Vault, verifiable on Arc.
           </p>
+          <ol className="mt-6 grid max-w-xl grid-cols-2 gap-2 sm:max-w-2xl sm:grid-cols-4">
+            {["Owner policy", "Agent signs", "Vault enforces", "Arc proves"].map((step, index) => (
+              <li key={step} className="border border-dashed border-line bg-paper/80 px-3 py-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
+                  0{index + 1}
+                </span>
+                <p className="mt-1 font-display text-sm font-semibold tracking-tight text-ink">{step}</p>
+              </li>
+            ))}
+          </ol>
           <div className="mt-6 md:hidden">
             <FacetCtaPair
-              left="Get Started"
-              right="Open Flow"
-              leftTo="/start"
-              rightTo="/flow"
+              left="Open Beacon"
+              right="Inspect live proofs"
+              leftTo="/flow"
+              rightTo="#live-proof"
               size="md"
             />
           </div>
           <div className="mt-6 hidden md:block">
             <FacetCtaPair
-              left="Get Started"
-              right="Open Flow"
-              leftTo="/start"
-              rightTo="/flow"
+              left="Open Beacon"
+              right="Inspect live proofs"
+              leftTo="/flow"
+              rightTo="#live-proof"
               size="lg"
             />
           </div>
           <Link
-            to="/start"
+            to="/flow/vault"
             className="mt-4 inline-flex items-center gap-1 font-mono text-sm tracking-[0.35px] text-ink-muted underline underline-offset-4 hover:text-ink"
           >
-            open the Arc vault
+            Open the vault
           </Link>
         </motion.div>
       </div>

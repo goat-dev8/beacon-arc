@@ -43,7 +43,7 @@ export function WhatIsBeacon() {
               One vault. A signed USDC action.
             </h2>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-ink-muted">
-              Beacon holds USDC on Arc. You set the cap, the window, and who can be paid. The agent signs. The vault calls transfer itself.
+              A send pays an allowlisted address. A swap uses the pinned USDC/EURC pool and returns EURC to the vault.
             </p>
           </motion.div>
           <motion.div
@@ -141,9 +141,12 @@ export function ContractsSection() {
           {[
             ["Network", `${NETWORK.name} · chain ${NETWORK.chainId}`, null],
             ["USDC", CONTRACTS.usdc, CONTRACTS.usdc],
-            ["Vault factory", CONTRACTS.vaultFactory, CONTRACTS.vaultFactory],
-            ["Vault", CONTRACTS.vault, CONTRACTS.vault],
-            ["Receipt registry", CONTRACTS.receiptRegistry, CONTRACTS.receiptRegistry],
+            ["Active vault", V2_CONTRACTS.vault, V2_CONTRACTS.vault],
+            ["Active factory", V2_CONTRACTS.vaultFactory, V2_CONTRACTS.vaultFactory],
+            ["Active registry", V2_CONTRACTS.receiptRegistry, V2_CONTRACTS.receiptRegistry],
+            ["First vault, send only", CONTRACTS.vault, CONTRACTS.vault],
+            ["First factory", CONTRACTS.vaultFactory, CONTRACTS.vaultFactory],
+            ["First registry", CONTRACTS.receiptRegistry, CONTRACTS.receiptRegistry],
           ].map(([k, v, href], i, arr) => (
             <div
               key={k}
@@ -320,15 +323,15 @@ export function LiveProofSection() {
             Proof, not promises.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-white/65">
-            Every claim below opens on-chain. No wallet, no signup, no trust required.
+            Every claim below opens on-chain. No wallet required to inspect it.
           </p>
         </motion.div>
 
         <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-0 border border-white/15 sm:grid-cols-3">
           {[
-            ["0.030 USDC", "moved through policy"],
-            ["8 executions", "recorded on-chain"],
-            ["3 refusals", "reverted on-chain"],
+            ["0.030 USDC", "recorded input, V1 + V2"],
+            ["8 executions", "Recorded events"],
+            ["3 refusals", "reverted calls"],
           ].map(([big, small], i) => (
             <div
               key={big}
@@ -368,7 +371,7 @@ export function LiveProofSection() {
               </p>
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
                 <a
-                  href={`https://repo.sourcify.dev/5042/${c.address}`}
+                  href={`https://sourcify.dev/server/v2/contract/5042/${c.address}`}
                   target="_blank"
                   rel="noreferrer"
                   className="font-mono text-xs text-signal underline decoration-signal/40 underline-offset-4 hover:decoration-signal"
@@ -568,8 +571,7 @@ export function LiveProofSection() {
         </div>
 
         <p className="mx-auto mt-10 max-w-2xl text-center font-mono text-[11px] leading-relaxed text-white/40">
-          Dust-scale proof of the mechanism. The honest baseline, not a volume claim.
-          0.030 USDC moved · 8 executions · 3 on-chain refusals. Counted from registry Recorded events on 2026-10-14. The live vault still holds 0.01 USDC and 0.006245 EURC.{" "}
+          Recorded input across V1 and V2, not the vault balance. 0.030 USDC · 8 Recorded events · 3 reverted calls. Re-read at block 26001492 on 2026-10-14T23:38:49Z. The active vault held 0.01 USDC and 0.006245 EURC.{" "}
           <a
             href={NETWORK.explorer}
             target="_blank"
@@ -589,14 +591,14 @@ export function FinalCta() {
     <section className="bg-dusk py-28 text-paper md:py-36">
       <div className="mx-auto max-w-6xl px-5 text-center md:px-8">
         <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-signal">
-          Try it — eight steps, on the live vault
+          Try it. Eight steps, on the live vault.
         </p>
         <h2 className="font-display text-3xl font-extrabold tracking-tight md:text-5xl">
           Run the vault journey yourself.
         </h2>
         <p className="mx-auto mt-4 max-w-md text-white/65">
           Deposit. Grant the agent. Set the cap. Sign the USDC action. Watch the
-          receipt land on Arc — or watch the vault refuse.
+          receipt land on Arc, or watch the vault refuse.
         </p>
         <div className="mt-8 flex justify-center overflow-x-auto px-2">
           <FacetCtaPair left="Get Started" right="Open the vault" leftTo="/start" rightTo="/flow/vault" size="md" />
@@ -637,7 +639,7 @@ export function Footer() {
             GitHub ↗
           </a>
           <a
-            href="https://github.com/goat-dev8/beacon-arc/blob/main/JUDGE-QUICKSTART.md"
+            href="https://github.com/goat-dev8/beacon-arc#three-minute-review"
             target="_blank"
             rel="noreferrer"
             className="underline-offset-4 hover:text-ink hover:underline"

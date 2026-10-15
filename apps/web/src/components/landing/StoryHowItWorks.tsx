@@ -30,7 +30,7 @@ const STAGES = [
   },
   {
     id: "execute",
-    title: "Send",
+    title: "Preparing a send",
     body: "The vault calls USDC transfer. Over-cap, wrong recipient, and stale policy all revert.",
     rail: "USDC",
   },

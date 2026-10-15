@@ -24,7 +24,7 @@ test("agents initialize without a bearer is denied", async ({ page }) => {
 
 test("a non-hash verify url does not show a job proof", async ({ page }) => {
   await page.goto("/verify/not-a-job");
-  await expect(page.getByRole("heading", { name: "Not an Arc receipt" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "That doesn't look like a receipt" })).toBeVisible();
   await expect(page.getByText("Job proof")).toHaveCount(0);
   await expect(page.getByText("Escrow locked")).toHaveCount(0);
 });

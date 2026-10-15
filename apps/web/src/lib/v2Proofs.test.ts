@@ -51,6 +51,6 @@ test("explorer and Sourcify link builders point at Arc mainnet", () => {
   );
   assert.equal(
     V2_SOURCIFY(V2_DEPLOYMENTS[0].address),
-    `https://repo.sourcify.dev/5042/${V2_DEPLOYMENTS[0].address}`,
+    `https://sourcify.dev/server/v2/contract/5042/${V2_DEPLOYMENTS[0].address}`,
   );
 });

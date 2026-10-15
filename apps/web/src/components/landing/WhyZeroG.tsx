@@ -27,7 +27,7 @@ export const WHY_ZEROG_ITEMS = [
   {
     id: "vault",
     title: "The vault calls transfer",
-    body: "Beacon builds the USDC transfer itself. There is no executor-chosen calldata and no arbitrary router command.",
+    body: "Sends call USDC transfer. Swaps call the pinned Uniswap v3 router. The vault builds both calls.",
   },
   {
     id: "swap",
@@ -37,7 +37,7 @@ export const WHY_ZEROG_ITEMS = [
   {
     id: "unavailable",
     title: "Unavailable stays unavailable",
-    body: "CCTP, privacy, post-quantum signing, x402, and ERC-8004 are capability flags only. None of them move USDC.",
+    body: "A contract-started USDC bridge reverts on Arc. CCTP-X, privacy, post-quantum signing, x402, and ERC-8004 are not live.",
   },
   {
     id: "receipts",

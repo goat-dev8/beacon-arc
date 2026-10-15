@@ -1,5 +1,8 @@
 import { decodeFunctionResult, encodeFunctionData, keccak256, sha256, toBytes, type Hex } from "viem";
-import { CONTRACTS, NETWORK } from "./chain";
+import { CONTRACTS, NETWORK, V2_CONTRACTS } from "./chain";
+
+/** Active V2 registry first, then the V1 registry for pre-V2 receipts. */
+const RECEIPT_REGISTRIES = [V2_CONTRACTS.receiptRegistry, CONTRACTS.receiptRegistry] as const;
 
 const RECEIPTS_ABI = [
   {
@@ -91,7 +94,7 @@ export async function readRecordedEvent(actionHash: string): Promise<RecordedEve
             "eth_getLogs",
             [
               {
-                address: CONTRACTS.receiptRegistry,
+                address: [...RECEIPT_REGISTRIES],
                 topics: [topic0, topic1],
                 fromBlock: c.from,
                 toBlock: c.to,
@@ -231,47 +234,52 @@ export type ArcChainReceipt = {
   actionHash: string;
 };
 
-/** Read BeaconReceiptRegistry.receipts(actionHash) from Arc. */
+/** Read BeaconReceiptRegistry.receipts(actionHash) from Arc: V2 first, then V1. */
 export async function readArcReceipt(actionHash: string): Promise<ArcChainReceipt> {
   const hash = actionHash.trim();
   if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) {
     throw new Error("An Arc receipt is a 32-byte action hash.");
   }
-  const data = encodeFunctionData({
-    abi: ARC_RECEIPT_ABI,
-    functionName: "receipts",
-    args: [hash as Hex],
-  });
-  const res = await fetch(NETWORK.rpc, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "eth_call",
-      params: [{ to: CONTRACTS.receiptRegistry, data }, "latest"],
-    }),
-  });
-  if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
-  const json = (await res.json()) as { result?: string; error?: { message?: string } };
-  if (!json.result) throw new Error(json.error?.message ?? "eth_call empty");
-  const decoded = decodeFunctionResult({
-    abi: ARC_RECEIPT_ABI,
-    functionName: "receipts",
-    data: json.result as Hex,
-  });
-  const exists = Boolean(decoded[5]);
-  return {
-    exists,
-    vault: exists ? String(decoded[0]) : undefined,
-    agent: exists ? String(decoded[1]) : undefined,
-    recipient: exists ? String(decoded[2]) : undefined,
-    amount: exists ? decoded[3].toString() : undefined,
-    nonce: exists ? decoded[4].toString() : undefined,
-    rpc: NETWORK.rpc,
-    registry: CONTRACTS.receiptRegistry,
-    actionHash: hash,
-  };
+  let last: ArcChainReceipt | null = null;
+  for (const registry of RECEIPT_REGISTRIES) {
+    const data = encodeFunctionData({
+      abi: ARC_RECEIPT_ABI,
+      functionName: "receipts",
+      args: [hash as Hex],
+    });
+    const res = await fetch(NETWORK.rpc, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_call",
+        params: [{ to: registry, data }, "latest"],
+      }),
+    });
+    if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
+    const json = (await res.json()) as { result?: string; error?: { message?: string } };
+    if (!json.result) throw new Error(json.error?.message ?? "eth_call empty");
+    const decoded = decodeFunctionResult({
+      abi: ARC_RECEIPT_ABI,
+      functionName: "receipts",
+      data: json.result as Hex,
+    });
+    const exists = Boolean(decoded[5]);
+    last = {
+      exists,
+      vault: exists ? String(decoded[0]) : undefined,
+      agent: exists ? String(decoded[1]) : undefined,
+      recipient: exists ? String(decoded[2]) : undefined,
+      amount: exists ? decoded[3].toString() : undefined,
+      nonce: exists ? decoded[4].toString() : undefined,
+      rpc: NETWORK.rpc,
+      registry,
+      actionHash: hash,
+    };
+    if (exists) return last;
+  }
+  return last as ArcChainReceipt;
 }
 
 export async function readReceiptFromRpc(jobId: string): Promise<BrowserReceipt> {

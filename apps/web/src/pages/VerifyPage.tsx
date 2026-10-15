@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { explorerAddress, explorerTx } from "@/lib/explorers";
 import { apiBase } from "@/lib/publicEnv";
 import { readArcReceipt, readRecordedEvent, type ArcChainReceipt, type RecordedEvent } from "@/lib/onchainReceipt";
-import { CONTRACTS } from "@/lib/chain";
+import { V2_CONTRACTS } from "@/lib/chain";
 
 type ArcVerifyBody = {
   actionHash?: string;
@@ -268,11 +268,11 @@ export function VerifyPage() {
           <a
             className="underline underline-offset-2 hover:no-underline"
             style={{ color: ACCENT }}
-            href={explorerAddress(CONTRACTS.receiptRegistry)}
+            href={explorerAddress(V2_CONTRACTS.receiptRegistry)}
             target="_blank"
             rel="noreferrer"
           >
-            {CONTRACTS.receiptRegistry}
+            {V2_CONTRACTS.receiptRegistry}
           </a>{" "}
           · verified source on Sourcify
         </p>

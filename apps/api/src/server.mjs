@@ -204,6 +204,7 @@ export function createServer(deps) {
     return {
       actionHash: req.params.actionHash,
       status: "recorded",
+      registry: receipt.registry,
       vault: receipt.vault,
       agent: receipt.agent,
       recipient: receipt.recipient,

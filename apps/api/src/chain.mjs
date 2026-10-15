@@ -5,6 +5,7 @@ import {
   CHAIN_ID,
   FACTORY,
   V2_FACTORY,
+  V2_REGISTRY,
   REGISTRY,
   REGISTRY_DEPLOY_BLOCK,
   V3_FACTORY,
@@ -298,16 +299,25 @@ export async function readRecordedEvents(client, { fromBlock = REGISTRY_DEPLOY_B
   return out;
 }
 
+// Active V2 registry first; V1 kept so pre-V2 receipts still verify.
+const RECEIPT_REGISTRIES = [V2_REGISTRY, REGISTRY];
+
 export async function readReceipt(client, actionHash) {
-  const row = await client.readContract({ address: REGISTRY, abi: registryAbi, functionName: "receipts", args: [actionHash] });
-  return {
-    vault: row[0],
-    agent: row[1],
-    recipient: row[2],
-    amount: row[3].toString(),
-    nonce: row[4].toString(),
-    exists: row[5],
-  };
+  for (const registry of RECEIPT_REGISTRIES) {
+    const row = await client.readContract({ address: registry, abi: registryAbi, functionName: "receipts", args: [actionHash] });
+    if (row[5]) {
+      return {
+        registry,
+        vault: row[0],
+        agent: row[1],
+        recipient: row[2],
+        amount: row[3].toString(),
+        nonce: row[4].toString(),
+        exists: true,
+      };
+    }
+  }
+  return { exists: false };
 }
 
 export async function onchainActionHash(client, vault, action) {
